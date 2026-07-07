@@ -133,18 +133,42 @@ function performGacha(type) {
   gameState.gold -= config.price;
   
   const results = [];
-  for (let i = 0; i < config.count; i++) {
-    const quality = getRandomQuality(config.probabilities);
-    const card = createCard(quality);
-    results.push(card);
-    gameState.cards.push(card);
-    
-    if (!gameState.collectedCards.includes(card.name)) {
-      gameState.collectedCards.push(card.name);
+  const isLargeGacha = config.count >= 50;
+  
+  if (isLargeGacha) {
+    // 大量抽卡：使用统计方式，不逐张保存结果
+    const qualityCount = {};
+    for (const q of Object.keys(config.probabilities)) {
+      qualityCount[q] = 0;
     }
+    
+    for (let i = 0; i < config.count; i++) {
+      const quality = getRandomQuality(config.probabilities);
+      const card = createCard(quality);
+      gameState.cards.push(card);
+      qualityCount[quality] = (qualityCount[quality] || 0) + 1;
+      
+      if (!gameState.collectedCards.includes(card.name)) {
+        gameState.collectedCards.push(card.name);
+      }
+    }
+    
+    showGachaResultSummary(type, qualityCount, config.count);
+  } else {
+    for (let i = 0; i < config.count; i++) {
+      const quality = getRandomQuality(config.probabilities);
+      const card = createCard(quality);
+      results.push(card);
+      gameState.cards.push(card);
+      
+      if (!gameState.collectedCards.includes(card.name)) {
+        gameState.collectedCards.push(card.name);
+      }
+    }
+    
+    showGachaResult(results);
   }
   
-  showGachaResult(results);
   saveGame();
   updateUI();
 }
@@ -175,6 +199,32 @@ function showGachaResult(cards) {
   });
   
   resultDiv.appendChild(cardGrid);
+}
+
+function showGachaResultSummary(type, qualityCount, totalCount) {
+  const resultDiv = document.getElementById('gacha-result');
+  const typeName = type === 'myth100' ? '神话100连抽' : '神话1000连抽';
+  
+  let html = `<h3>${typeName}结果 (共${totalCount}张)</h3>`;
+  html += '<div class="gacha-summary">';
+  html += '<div class="gacha-summary-grid">';
+  
+  const qualities = [7, 6, 5, 4, 3];
+  qualities.forEach(q => {
+    const count = qualityCount[q] || 0;
+    if (count > 0) {
+      const config = QUALITY_CONFIG[q];
+      const pct = ((count / totalCount) * 100).toFixed(1);
+      html += `<div class="gacha-summary-item" style="border-left: 4px solid ${config.color};">
+        <span class="quality-badge" style="background:${config.color}; font-size:0.9em;">${config.name}</span>
+        <span style="font-size:1.2em;font-weight:bold;color:#fff;">${count}张</span>
+        <span style="color:#aaa;font-size:0.8em;">(${pct}%)</span>
+      </div>`;
+    }
+  });
+  
+  html += '</div></div>';
+  resultDiv.innerHTML = html;
 }
 
 const CARD_ICONS = {

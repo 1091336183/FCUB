@@ -245,6 +245,24 @@ body {
   color: #000;
 }
 
+.gacha-btn.myth100 {
+  background: linear-gradient(135deg, #ff6347, #ff1493);
+  color: #fff;
+  box-shadow: 0 4px 15px rgba(255, 99, 71, 0.4);
+}
+
+.gacha-btn.myth1000 {
+  background: linear-gradient(135deg, #ff1493, #9400d3);
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(255, 20, 147, 0.5);
+  animation: myth1000Glow 2s ease-in-out infinite;
+}
+
+@keyframes myth1000Glow {
+  0%, 100% { box-shadow: 0 4px 20px rgba(255, 20, 147, 0.5); }
+  50% { box-shadow: 0 4px 35px rgba(148, 0, 211, 0.8); }
+}
+
 .gacha-btn:hover {
   transform: scale(1.05);
   box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
@@ -261,6 +279,28 @@ body {
 
 .gacha-result {
   margin-top: 20px;
+}
+
+.gacha-summary {
+  margin-top: 15px;
+}
+
+.gacha-summary-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.gacha-summary-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 12px 20px;
+  border-radius: 10px;
+  justify-content: space-between;
 }
 
 .card {
@@ -1501,6 +1541,16 @@ body {
     padding: 14px 20px;
     min-width: auto;
     font-size: 1em;
+  }
+
+  .gacha-btn.myth100,
+  .gacha-btn.myth1000 {
+    font-size: 1em;
+  }
+
+  .gacha-summary-item {
+    padding: 10px 15px;
+    font-size: 0.85em;
   }
 
   .btn-price {

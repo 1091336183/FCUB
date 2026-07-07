@@ -53,6 +53,16 @@ const GACHA_CONFIG = {
     price: 30000,
     count: 8,
     probabilities: { 3: 0.2, 4: 0.3, 5: 0.25, 6: 0.15, 7: 0.1 }
+  },
+  myth100: {
+    price: 300000,
+    count: 100,
+    probabilities: { 3: 0.2, 4: 0.3, 5: 0.25, 6: 0.15, 7: 0.1 }
+  },
+  myth1000: {
+    price: 2500000,
+    count: 1000,
+    probabilities: { 3: 0.2, 4: 0.3, 5: 0.25, 6: 0.15, 7: 0.1 }
   }
 };
 
