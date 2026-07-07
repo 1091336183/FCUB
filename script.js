@@ -104,16 +104,22 @@ function showConfirmModal(title, message, onConfirm) {
   modal.className = 'modal';
   modal.style.display = 'flex';
   modal.innerHTML = `
-    <div class="modal-content" style="max-width: 400px; width: 90%;">
+    <div class="modal-content confirm-modal-content">
       <h3>${title}</h3>
       <p>${message}</p>
       <div style="display: flex; justify-content: center; gap: 20px; margin-top: 20px;">
-        <button class="action-btn secondary" onclick="this.closest('.modal').remove()">取消</button>
-        <button class="action-btn primary" onclick="this.closest('.modal').remove(); ${onConfirm.name}()">确定</button>
+        <button class="action-btn secondary modal-cancel-btn">取消</button>
+        <button class="action-btn primary modal-ok-btn">确定</button>
       </div>
     </div>
   `;
   document.body.appendChild(modal);
+
+  modal.querySelector('.modal-cancel-btn').addEventListener('click', () => modal.remove());
+  modal.querySelector('.modal-ok-btn').addEventListener('click', () => {
+    modal.remove();
+    onConfirm();
+  });
 }
 
 function performGacha(type) {
@@ -159,9 +165,7 @@ function showGachaResult(cards) {
   resultDiv.innerHTML = '<h3>抽卡结果</h3>';
   
   const cardGrid = document.createElement('div');
-  cardGrid.style.display = 'grid';
-  cardGrid.style.gridTemplateColumns = 'repeat(4, 1fr)';
-  cardGrid.style.gap = '10px';
+  cardGrid.className = 'gacha-result-grid';
   
   cards.forEach((card, index) => {
     const cardEl = createCardElement(card);
@@ -481,6 +485,49 @@ function renderLevelGrid() {
   }
 }
 
+function isQualitySetComplete(quality) {
+  const names = CARD_NAMES[quality];
+  if (!names) return false;
+  return names.every(name => gameState.collectedCards.includes(name));
+}
+
+function getCollectionCountForQuality(quality) {
+  const names = CARD_NAMES[quality];
+  if (!names) return 0;
+  return names.filter(name => gameState.collectedCards.includes(name)).length;
+}
+
+function getGlobalBonus() {
+  let total = 0;
+  for (let q = 1; q <= 6; q++) {
+    if (isQualitySetComplete(q)) {
+      total += COLLECTION_BONUS[q];
+    }
+  }
+  return total;
+}
+
+function getCollectionBonus(quality, mythLevel = 0) {
+  if (!isQualitySetComplete(quality)) return 0;
+
+  const bonusConfig = COLLECTION_BONUS[quality];
+  if (quality === 7) {
+    return bonusConfig.base + mythLevel * bonusConfig.perLevel;
+  }
+  return bonusConfig;
+}
+
+function getCollectionBonusPercent(quality, mythLevel = 0) {
+  return Math.round(getCollectionBonus(quality, mythLevel) * 100);
+}
+
+function abbreviateNumber(num) {
+  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+  if (num >= 10000) return (num / 1000).toFixed(1) + 'K';
+  if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+  return num.toString();
+}
+
 function startBattle(level) {
   if (!gameState.battleCards || gameState.battleCards.length !== 3) {
     showToast('请先在背包中选择3张卡片！');
@@ -490,7 +537,24 @@ function startBattle(level) {
   
   const isBoss = level % LEVEL_CONFIG.bossInterval === 0;
   
-  const playerCards = [...gameState.battleCards];
+  const globalBonus = getGlobalBonus();
+
+  const playerCards = gameState.battleCards.map(card => {
+    let bonus = globalBonus;
+    // 神话卡片额外叠加神话等级加成
+    if (card.quality === 7) {
+      bonus += getCollectionBonus(7, card.mythLevel || 0);
+    }
+    if (bonus > 0) {
+      return {
+        ...card,
+        attack: Math.floor(card.attack * (1 + bonus)),
+        hp: Math.floor(card.hp * (1 + bonus)),
+        defense: Math.floor(card.defense * (1 + bonus))
+      };
+    }
+    return { ...card };
+  });
   const enemyCards = generateEnemyCards(level);
   
   gameState.battleState = {
@@ -572,7 +636,7 @@ function createBattleCardElement(card, side, index) {
   const hpClass = isDead ? 'critical' : hpPercent > 50 ? '' : hpPercent > 20 ? 'low' : 'critical';
   
   const el = document.createElement('div');
-  el.className = `card card-${card.quality} ${isDead ? 'dead' : ''} ${hpPercent <= 20 ? 'hp-critical' : ''}`;
+  el.className = `card card-${card.quality} battle-card ${isDead ? 'dead' : ''} ${hpPercent <= 20 ? 'hp-critical' : ''}`;
   el.dataset.side = side;
   el.dataset.index = index;
   
@@ -581,6 +645,7 @@ function createBattleCardElement(card, side, index) {
   }
   
   const icon = getCardIcon(card);
+  const abbr = abbreviateNumber;
   
   el.innerHTML = `
     <div class="card-header">
@@ -589,15 +654,15 @@ function createBattleCardElement(card, side, index) {
       <div class="quality-badge">${config.name}</div>
     </div>
     <div class="card-stats">
-      <div class="stat-row"><span>攻击</span><span>${card.attack}</span></div>
-      <div class="stat-row"><span>生命</span><span>${card.currentHp}/${card.hp}</span></div>
-      <div class="stat-row"><span>防御</span><span>${card.defense}</span></div>
+      <div class="stat-row"><span>攻击</span><span>${abbr(card.attack)}</span></div>
+      <div class="stat-row"><span>生命</span><span>${abbr(card.currentHp)}/${abbr(card.hp)}</span></div>
+      <div class="stat-row"><span>防御</span><span>${abbr(card.defense)}</span></div>
       <div class="stat-row"><span>暴击</span><span>${(card.critRate * 100).toFixed(0)}%</span></div>
     </div>
-    <div class="card-hp-bar" style="margin-top:5px">
+    <div class="card-hp-bar" style="margin-top:3px">
       <div class="card-hp-fill ${hpClass}" style="width:${hpPercent}%"></div>
     </div>
-    ${card.hasUltimate ? '<div style="text-align:center;color:#ffd700;font-size:0.8em;margin-top:5px">必杀技 +500</div>' : ''}
+    ${card.hasUltimate ? '<div class="battle-ultimate">必杀技</div>' : ''}
   `;
   
   return el;
@@ -981,6 +1046,21 @@ function renderCollection() {
   }
   
   filteredQualities.forEach(quality => {
+    const config = QUALITY_CONFIG[quality];
+    const collectedCount = getCollectionCountForQuality(quality);
+    const totalCount = CARD_NAMES[quality].length;
+    const isComplete = isQualitySetComplete(quality);
+
+    // 添加品质分组标题
+    const header = document.createElement('div');
+    header.className = 'collection-quality-header';
+    header.style.cssText = `grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-top: 8px;`;
+    header.innerHTML = `
+      <span class="quality-badge" style="background:${config.color}; font-size:0.8em;">${config.name}</span>
+      <span style="color:#aaa; font-size:0.8em;">${collectedCount}/${totalCount}</span>
+    `;
+    grid.appendChild(header);
+    
     CARD_NAMES[quality].forEach(name => {
       const isUnlocked = gameState.collectedCards.includes(name);
       
@@ -995,7 +1075,7 @@ function renderCollection() {
         <div class="card-header">
           <div class="card-icon">${isUnlocked ? icon : '❓'}</div>
           <div class="card-name">${name}</div>
-          <div class="quality-badge">${QUALITY_CONFIG[quality].name}</div>
+          <div class="quality-badge">${config.name}</div>
         </div>
         ${isUnlocked ? `
         <div class="card-stats">
@@ -1013,6 +1093,91 @@ function renderCollection() {
   
   document.getElementById('collection-count').textContent = gameState.collectedCards.length;
   document.getElementById('collection-total').textContent = Object.values(CARD_NAMES).reduce((sum, names) => sum + names.length, 0);
+
+  // 渲染套装加成汇总
+  renderCollectionBonusSummary();
+}
+
+function renderCollectionBonusSummary() {
+  let summary = document.getElementById('collection-bonus-summary');
+  if (!summary) {
+    summary = document.createElement('div');
+    summary.id = 'collection-bonus-summary';
+    summary.className = 'collection-bonus-summary';
+    const progress = document.querySelector('.collection-progress');
+    progress.parentNode.insertBefore(summary, progress.nextSibling);
+  }
+
+  let html = '<h4>套装收集加成（集齐全部8张后生效）</h4>';
+  html += '<p style="text-align:center;color:#ffd700;font-size:0.8em;margin-bottom:10px;">品质1-6：全部上阵卡牌获得全局增益 | 品质7：神话卡牌额外叠加等级加成</p>';
+  html += '<div class="bonus-list">';
+  let hasBonus = false;
+
+  for (let q = 1; q <= 7; q++) {
+    const collected = getCollectionCountForQuality(q);
+    const total = CARD_NAMES[q] ? CARD_NAMES[q].length : 8;
+    const isComplete = isQualitySetComplete(q);
+    const config = QUALITY_CONFIG[q];
+
+    if (q < 7) {
+      const bonus = Math.round(COLLECTION_BONUS[q] * 100);
+      html += `<div class="bonus-item ${isComplete ? 'complete' : ''}">
+        <span class="bonus-quality" style="color:${config.color}">${config.name}</span>
+        <span class="bonus-progress">${collected}/${total}</span>
+        <span class="bonus-value">${isComplete ? '全局 +' + bonus + '%' : '未集齐'}</span>
+      </div>`;
+      if (isComplete) hasBonus = true;
+    } else {
+      // 神话基础行
+      const base = Math.round(COLLECTION_BONUS[7].base * 100);
+      html += `<div class="bonus-item ${isComplete ? 'complete' : ''}">
+        <span class="bonus-quality" style="color:${config.color}">神话</span>
+        <span class="bonus-progress">${collected}/${total}</span>
+        <span class="bonus-value">${isComplete ? '神话 +' + base + '%' : '未集齐'}</span>
+      </div>`;
+      if (isComplete) hasBonus = true;
+
+      // 神话+1 ~ 神话+10 收集任务
+      html += '<div class="bonus-divider">── 神话等级加成任务 ──</div>';
+      for (let lvl = 1; lvl <= 10; lvl++) {
+        const lvlBonus = Math.round((COLLECTION_BONUS[7].base + lvl * COLLECTION_BONUS[7].perLevel) * 100);
+        const mythLvlItem = isComplete ? 'complete' : '';
+        html += `<div class="bonus-item ${mythLvlItem}">
+          <span class="bonus-quality" style="color:${config.color}">神话+${lvl}</span>
+          <span class="bonus-progress">${isComplete ? '8/8' : collected + '/' + total}</span>
+          <span class="bonus-value">${isComplete ? '+' + lvlBonus + '%' : '需集齐神话8张'}</span>
+        </div>`;
+      }
+    }
+  }
+
+  html += '</div>';
+
+  if (!hasBonus) {
+    html += '<p class="no-bonus">收集齐任一品质的全部8张卡片后解锁全局属性增益</p>';
+  } else {
+    const globalTotal = Math.round(getGlobalBonus() * 100);
+    if (globalTotal > 0) {
+      html += `<p class="set-complete-banner" style="margin-top:12px;">当前全局增益累计：全部上阵卡牌攻击/生命/防御 <strong>+${globalTotal}%</strong></p>`;
+    }
+  }
+
+  summary.innerHTML = html;
+}
+
+function showCollectionTab(tab) {
+  document.querySelectorAll('.collection-tab-btn').forEach(btn => btn.classList.remove('active'));
+  if (tab === 'cards') {
+    document.querySelectorAll('.collection-tab-btn')[0].classList.add('active');
+    document.getElementById('collection-cards-tab').style.display = 'block';
+    document.getElementById('collection-bonuses-tab').style.display = 'none';
+    renderCollection();
+  } else {
+    document.querySelectorAll('.collection-tab-btn')[1].classList.add('active');
+    document.getElementById('collection-cards-tab').style.display = 'none';
+    document.getElementById('collection-bonuses-tab').style.display = 'block';
+    renderCollectionBonusSummary();
+  }
 }
 
 function filterCollection(filter) {

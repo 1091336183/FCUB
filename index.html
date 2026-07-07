@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>幻卡纪元-终极合成战</title>
   <link rel="stylesheet" href="style.css">
   <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
@@ -98,16 +98,6 @@
       <section id="gacha" class="tab-content">
         <h2>抽卡中心</h2>
         <div class="gacha-area">
-          <div class="gacha-card-preview" id="gacha-preview">
-            <div class="card-placeholder" id="card-1">?</div>
-            <div class="card-placeholder" id="card-2">?</div>
-            <div class="card-placeholder" id="card-3">?</div>
-            <div class="card-placeholder" id="card-4">?</div>
-            <div class="card-placeholder" id="card-5">?</div>
-            <div class="card-placeholder" id="card-6">?</div>
-            <div class="card-placeholder" id="card-7">?</div>
-            <div class="card-placeholder" id="card-8">?</div>
-          </div>
           <div class="gacha-buttons">
             <button class="gacha-btn normal" onclick="performGacha('normal')">
               <div class="btn-price">1000 金币</div>
@@ -128,20 +118,28 @@
 
       <section id="inventory" class="tab-content">
         <h2>卡片背包</h2>
-        <div class="inventory-filter">
-          <button class="filter-btn active" data-filter="all" onclick="filterCards('all')">全部</button>
-          <button class="filter-btn" data-filter="1" onclick="filterCards(1)">普通</button>
-          <button class="filter-btn" data-filter="2" onclick="filterCards(2)">精良</button>
-          <button class="filter-btn" data-filter="3" onclick="filterCards(3)">优秀</button>
-          <button class="filter-btn" data-filter="4" onclick="filterCards(4)">杰出</button>
-          <button class="filter-btn" data-filter="5" onclick="filterCards(5)">史诗</button>
-          <button class="filter-btn" data-filter="6" onclick="filterCards(6)">传奇</button>
-          <button class="filter-btn" data-filter="7" onclick="filterCards(7)">神话</button>
-        </div>
-        <div class="inventory-grid" id="inventory-grid"></div>
-        <div class="inventory-actions">
-          <button class="action-btn" onclick="sellSelectedCards()">出售选中</button>
-          <button class="action-btn" onclick="selectForBattle()">去挑战</button>
+        <div class="inventory-wrapper">
+          <div class="inventory-scroll-area">
+            <div class="inventory-filter">
+              <button class="filter-btn active" data-filter="all" onclick="filterCards('all')">全部</button>
+              <button class="filter-btn" data-filter="1" onclick="filterCards(1)">普通</button>
+              <button class="filter-btn" data-filter="2" onclick="filterCards(2)">精良</button>
+              <button class="filter-btn" data-filter="3" onclick="filterCards(3)">优秀</button>
+              <button class="filter-btn" data-filter="4" onclick="filterCards(4)">杰出</button>
+              <button class="filter-btn" data-filter="5" onclick="filterCards(5)">史诗</button>
+              <button class="filter-btn" data-filter="6" onclick="filterCards(6)">传奇</button>
+              <button class="filter-btn" data-filter="7" onclick="filterCards(7)">神话</button>
+            </div>
+            <div class="inventory-grid" id="inventory-grid"></div>
+          </div>
+          <div class="inventory-actions-fixed">
+            <button class="action-btn primary" onclick="sellSelectedCards()">
+              <i class="fa fa-trash"></i> 出售选中
+            </button>
+            <button class="action-btn primary" onclick="selectForBattle()">
+              <i class="fa fa-swords"></i> 去挑战
+            </button>
+          </div>
         </div>
       </section>
 
@@ -283,19 +281,28 @@
 
       <section id="collection" class="tab-content">
         <h2>卡片图鉴</h2>
-        <div class="collection-filter">
-          <button class="filter-btn active" data-filter="all" onclick="filterCollection('all')">全部</button>
-          <button class="filter-btn" data-filter="1" onclick="filterCollection(1)">普通</button>
-          <button class="filter-btn" data-filter="2" onclick="filterCollection(2)">精良</button>
-          <button class="filter-btn" data-filter="3" onclick="filterCollection(3)">优秀</button>
-          <button class="filter-btn" data-filter="4" onclick="filterCollection(4)">杰出</button>
-          <button class="filter-btn" data-filter="5" onclick="filterCollection(5)">史诗</button>
-          <button class="filter-btn" data-filter="6" onclick="filterCollection(6)">传奇</button>
-          <button class="filter-btn" data-filter="7" onclick="filterCollection(7)">神话</button>
+        <div class="collection-tabs">
+          <button class="collection-tab-btn active" onclick="showCollectionTab('cards')">卡片图鉴</button>
+          <button class="collection-tab-btn" onclick="showCollectionTab('bonuses')">套装效果</button>
         </div>
-        <div class="collection-grid" id="collection-grid"></div>
-        <div class="collection-progress">
-          <span>已收集: <span id="collection-count">0</span> / <span id="collection-total">56</span></span>
+        <div id="collection-cards-tab">
+          <div class="collection-filter">
+            <button class="filter-btn active" data-filter="all" onclick="filterCollection('all')">全部</button>
+            <button class="filter-btn" data-filter="1" onclick="filterCollection(1)">普通</button>
+            <button class="filter-btn" data-filter="2" onclick="filterCollection(2)">精良</button>
+            <button class="filter-btn" data-filter="3" onclick="filterCollection(3)">优秀</button>
+            <button class="filter-btn" data-filter="4" onclick="filterCollection(4)">杰出</button>
+            <button class="filter-btn" data-filter="5" onclick="filterCollection(5)">史诗</button>
+            <button class="filter-btn" data-filter="6" onclick="filterCollection(6)">传奇</button>
+            <button class="filter-btn" data-filter="7" onclick="filterCollection(7)">神话</button>
+          </div>
+          <div class="collection-grid" id="collection-grid"></div>
+          <div class="collection-progress">
+            <span>已收集: <span id="collection-count">0</span> / <span id="collection-total">56</span></span>
+          </div>
+        </div>
+        <div id="collection-bonuses-tab" style="display:none;">
+          <div id="collection-bonus-summary"></div>
         </div>
       </section>
     </main>

@@ -64,6 +64,16 @@ const LEVEL_CONFIG = {
   bossInterval: 10
 };
 
+const COLLECTION_BONUS = {
+  1: 0.10,
+  2: 0.20,
+  3: 0.40,
+  4: 0.60,
+  5: 0.80,
+  6: 1.00,
+  7: { base: 2.00, perLevel: 0.30 }
+};
+
 function generateCardId() {
   return 'card_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
