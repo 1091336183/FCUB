@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>幻卡纪元-终极合成战</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+</head>
+<body>
+  <div class="game-container">
+    <header class="header">
+      <h1 class="title">幻卡纪元-终极合成战</h1>
+      <div class="status-bar">
+        <div class="status-item">
+          <i class="fa fa-coins"></i>
+          <span id="gold-display">10000</span>
+        </div>
+        <div class="status-item">
+          <i class="fa fa-map-signs"></i>
+          <span id="level-display">第1关</span>
+        </div>
+        <div class="status-item">
+          <i class="fa fa-trophy"></i>
+          <span id="max-level-display">最高: 1</span>
+        </div>
+      </div>
+    </header>
+
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="home">
+        <i class="fa fa-home"></i>
+        <span>首页</span>
+      </button>
+      <button class="tab-btn" data-tab="gacha">
+        <i class="fa fa-gift"></i>
+        <span>抽卡</span>
+      </button>
+      <button class="tab-btn" data-tab="inventory">
+        <i class="fa fa-backpack"></i>
+        <span>背包</span>
+      </button>
+      <button class="tab-btn" data-tab="synthesize">
+        <i class="fa fa-flask"></i>
+        <span>合成</span>
+      </button>
+      <button class="tab-btn" data-tab="battle">
+        <i class="fa fa-swords"></i>
+        <span>战斗</span>
+      </button>
+      <button class="tab-btn" data-tab="collection">
+        <i class="fa fa-book"></i>
+        <span>图鉴</span>
+      </button>
+    </nav>
+
+    <main class="main-content">
+      <section id="home" class="tab-content active">
+        <div class="home-section">
+          <h2>欢迎来到幻卡纪元</h2>
+          <div class="home-stats">
+            <div class="stat-card">
+              <div class="stat-icon">💰</div>
+              <div class="stat-info">
+                <div class="stat-label">金币</div>
+                <div class="stat-value" id="home-gold">10000</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">📦</div>
+              <div class="stat-info">
+                <div class="stat-label">卡片数量</div>
+                <div class="stat-value" id="home-card-count">0</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">🏰</div>
+              <div class="stat-info">
+                <div class="stat-label">当前关卡</div>
+                <div class="stat-value" id="home-level">1</div>
+              </div>
+            </div>
+          </div>
+          <div class="home-actions">
+            <button class="action-btn primary" onclick="switchTab('gacha')">
+              <i class="fa fa-gift"></i> 去抽卡
+            </button>
+            <button class="action-btn secondary" onclick="switchTab('battle')">
+              <i class="fa fa-swords"></i> 去战斗
+            </button>
+            <button class="action-btn secondary" onclick="switchTab('synthesize')">
+              <i class="fa fa-flask"></i> 去合成
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section id="gacha" class="tab-content">
+        <h2>抽卡中心</h2>
+        <div class="gacha-area">
+          <div class="gacha-card-preview" id="gacha-preview">
+            <div class="card-placeholder" id="card-1">?</div>
+            <div class="card-placeholder" id="card-2">?</div>
+            <div class="card-placeholder" id="card-3">?</div>
+            <div class="card-placeholder" id="card-4">?</div>
+            <div class="card-placeholder" id="card-5">?</div>
+            <div class="card-placeholder" id="card-6">?</div>
+            <div class="card-placeholder" id="card-7">?</div>
+            <div class="card-placeholder" id="card-8">?</div>
+          </div>
+          <div class="gacha-buttons">
+            <button class="gacha-btn normal" onclick="performGacha('normal')">
+              <div class="btn-price">1000 金币</div>
+              <div class="btn-label">普通抽卡</div>
+            </button>
+            <button class="gacha-btn advanced" onclick="performGacha('advanced')">
+              <div class="btn-price">5000 金币</div>
+              <div class="btn-label">高级抽卡</div>
+            </button>
+            <button class="gacha-btn myth" onclick="performGacha('myth')">
+              <div class="btn-price">30000 金币</div>
+              <div class="btn-label">神话抽卡</div>
+            </button>
+          </div>
+        </div>
+        <div id="gacha-result" class="gacha-result"></div>
+      </section>
+
+      <section id="inventory" class="tab-content">
+        <h2>卡片背包</h2>
+        <div class="inventory-filter">
+          <button class="filter-btn active" data-filter="all" onclick="filterCards('all')">全部</button>
+          <button class="filter-btn" data-filter="1" onclick="filterCards(1)">普通</button>
+          <button class="filter-btn" data-filter="2" onclick="filterCards(2)">精良</button>
+          <button class="filter-btn" data-filter="3" onclick="filterCards(3)">优秀</button>
+          <button class="filter-btn" data-filter="4" onclick="filterCards(4)">杰出</button>
+          <button class="filter-btn" data-filter="5" onclick="filterCards(5)">史诗</button>
+          <button class="filter-btn" data-filter="6" onclick="filterCards(6)">传奇</button>
+          <button class="filter-btn" data-filter="7" onclick="filterCards(7)">神话</button>
+        </div>
+        <div class="inventory-grid" id="inventory-grid"></div>
+        <div class="inventory-actions">
+          <button class="action-btn" onclick="sellSelectedCards()">出售选中</button>
+          <button class="action-btn" onclick="selectForBattle()">去挑战</button>
+        </div>
+      </section>
+
+      <section id="synthesize" class="tab-content">
+        <h2>卡片合成</h2>
+        <div class="synthesize-area">
+          <div class="synthesize-list">
+            <div class="synthesize-item" data-quality="1">
+              <div class="synthesize-input">
+                <span class="quality-badge" style="background:#999">普通</span>
+                <span>×3</span>
+              </div>
+              <div class="synthesize-arrow">→</div>
+              <div class="synthesize-output">
+                <span class="quality-badge" style="background:#00ff00">精良</span>
+              </div>
+              <button class="synthesize-btn" onclick="openSynthesizeModal(1)">合成</button>
+            </div>
+            <div class="synthesize-item" data-quality="2">
+              <div class="synthesize-input">
+                <span class="quality-badge" style="background:#00ff00">精良</span>
+                <span>×3</span>
+              </div>
+              <div class="synthesize-arrow">→</div>
+              <div class="synthesize-output">
+                <span class="quality-badge" style="background:#0080ff">优秀</span>
+              </div>
+              <button class="synthesize-btn" onclick="openSynthesizeModal(2)">合成</button>
+            </div>
+            <div class="synthesize-item" data-quality="3">
+              <div class="synthesize-input">
+                <span class="quality-badge" style="background:#0080ff">优秀</span>
+                <span>×5</span>
+              </div>
+              <div class="synthesize-arrow">→</div>
+              <div class="synthesize-output">
+                <span class="quality-badge" style="background:#a335ee">杰出</span>
+              </div>
+              <button class="synthesize-btn" onclick="openSynthesizeModal(3)">合成</button>
+            </div>
+            <div class="synthesize-item" data-quality="4">
+              <div class="synthesize-input">
+                <span class="quality-badge" style="background:#a335ee">杰出</span>
+                <span>×5</span>
+              </div>
+              <div class="synthesize-arrow">→</div>
+              <div class="synthesize-output">
+                <span class="quality-badge" style="background:#ff8000">史诗</span>
+              </div>
+              <button class="synthesize-btn" onclick="openSynthesizeModal(4)">合成</button>
+            </div>
+            <div class="synthesize-item" data-quality="5">
+              <div class="synthesize-input">
+                <span class="quality-badge" style="background:#ff8000">史诗</span>
+                <span>×10</span>
+              </div>
+              <div class="synthesize-arrow">→</div>
+              <div class="synthesize-output">
+                <span class="quality-badge" style="background:#ff0000">传奇</span>
+              </div>
+              <button class="synthesize-btn" onclick="openSynthesizeModal(5)">合成</button>
+            </div>
+            <div class="synthesize-item" data-quality="6">
+              <div class="synthesize-input">
+                <span class="quality-badge" style="background:#ff0000">传奇</span>
+                <span>×15</span>
+              </div>
+              <div class="synthesize-arrow">→</div>
+              <div class="synthesize-output">
+                <span class="quality-badge" style="background:#ffd700">神话</span>
+              </div>
+              <button class="synthesize-btn" onclick="openSynthesizeModal(6)">合成</button>
+            </div>
+            <div class="synthesize-item" data-quality="7">
+              <div class="synthesize-input">
+                <span class="quality-badge" style="background:#ffd700">神话</span>
+                <span>×2</span>
+              </div>
+              <div class="synthesize-arrow">→</div>
+              <div class="synthesize-output">
+                <span class="quality-badge" style="background:#ffd700">神话+1</span>
+              </div>
+              <button class="synthesize-btn" onclick="openSynthesizeModal(7)">升级</button>
+            </div>
+          </div>
+        </div>
+        <div id="synthesize-result" class="synthesize-result"></div>
+      </section>
+
+      <section id="battle" class="tab-content">
+        <h2>战斗中心</h2>
+        <div class="battle-area">
+          <div class="level-selector">
+            <h3>选择关卡</h3>
+            <div class="level-grid" id="level-grid"></div>
+          </div>
+          
+          <div class="battle-scene" id="battle-scene" style="display:none">
+            <div class="battle-header">
+              <h3>第 <span id="battle-level">1</span> 关</h3>
+              <span id="battle-boss" class="boss-tag"></span>
+            </div>
+            
+            <div class="battle-field">
+              <div class="player-side">
+                <h4>我方卡片</h4>
+                <div class="card-battle-row" id="player-cards"></div>
+              </div>
+              
+              <div class="battle-vs">VS</div>
+              
+              <div class="enemy-side">
+                <h4>敌方卡片</h4>
+                <div class="card-battle-row" id="enemy-cards"></div>
+              </div>
+            </div>
+            
+            <div class="battle-log" id="battle-log"></div>
+            
+            <div class="battle-actions">
+              <button class="action-btn primary" onclick="playerAttack()">攻击</button>
+              <button class="action-btn" id="auto-battle-btn" onclick="toggleAutoBattle()">自动战斗</button>
+              <button class="action-btn" onclick="battleFlee()">逃跑</button>
+            </div>
+          </div>
+          
+          <div class="battle-result" id="battle-result" style="display:none">
+            <div class="result-icon" id="result-icon"></div>
+            <h3 id="result-title"></h3>
+            <p id="result-reward"></p>
+            <div class="result-actions">
+              <button class="action-btn" onclick="closeBattleResult()">确定</button>
+              <button class="action-btn" onclick="retryBattle()" id="retry-battle-btn" style="display:none">再次挑战</button>
+              <button class="action-btn primary" onclick="nextBattle()" id="next-battle-btn" style="display:none">下一关</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="collection" class="tab-content">
+        <h2>卡片图鉴</h2>
+        <div class="collection-filter">
+          <button class="filter-btn active" data-filter="all" onclick="filterCollection('all')">全部</button>
+          <button class="filter-btn" data-filter="1" onclick="filterCollection(1)">普通</button>
+          <button class="filter-btn" data-filter="2" onclick="filterCollection(2)">精良</button>
+          <button class="filter-btn" data-filter="3" onclick="filterCollection(3)">优秀</button>
+          <button class="filter-btn" data-filter="4" onclick="filterCollection(4)">杰出</button>
+          <button class="filter-btn" data-filter="5" onclick="filterCollection(5)">史诗</button>
+          <button class="filter-btn" data-filter="6" onclick="filterCollection(6)">传奇</button>
+          <button class="filter-btn" data-filter="7" onclick="filterCollection(7)">神话</button>
+        </div>
+        <div class="collection-grid" id="collection-grid"></div>
+        <div class="collection-progress">
+          <span>已收集: <span id="collection-count">0</span> / <span id="collection-total">56</span></span>
+        </div>
+      </section>
+    </main>
+
+    <div id="card-modal" class="modal" style="display:none">
+      <div class="modal-content">
+        <span class="close-btn" onclick="closeCardModal()">&times;</span>
+        <div class="card-detail" id="card-detail"></div>
+      </div>
+    </div>
+
+    <div id="synthesize-modal" class="modal" style="display:none">
+      <div class="modal-content" style="max-width: 800px; width: 90%; max-height: 80vh; overflow-y: auto;">
+        <span class="close-btn" onclick="closeSynthesizeModal()">&times;</span>
+        <h3 id="synthesize-modal-title">选择合成卡片</h3>
+        <p id="synthesize-modal-desc">请选择卡片进行合成</p>
+        <div class="synthesize-select-grid" id="synthesize-select-grid"></div>
+        <div class="synthesize-modal-actions">
+          <button class="action-btn secondary" onclick="closeSynthesizeModal()">取消</button>
+          <button class="action-btn primary" onclick="confirmSynthesize()" id="synthesize-confirm-btn">确认合成</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+  </div>
+
+  <script src="data/cardData.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
