@@ -14,6 +14,7 @@ let currentFilter = 'all';
 let selectedCardIds = [];
 let synthesizeQuality = null;
 let synthesizeSelectedIds = [];
+let synthesizeMythLevel = null;
 let isAutoBattle = false;
 let autoBattleTimeout = null;
 
@@ -323,7 +324,9 @@ function sellSelectedCards() {
 
 function renderSynthesizeButtons() {
   document.querySelectorAll('.synthesize-btn').forEach(btn => {
-    const quality = parseInt(btn.parentElement.dataset.quality);
+    const item = btn.closest('.synthesize-item');
+    if (!item) return;
+    const quality = parseInt(item.dataset.quality);
     btn.disabled = !canSynthesize(quality);
   });
 }
@@ -333,11 +336,14 @@ function canSynthesize(quality) {
   if (!rule) return false;
   
   if (quality === 7) {
-    const count = gameState.cards.filter(c => c.quality === 7 && c.mythLevel === 0).length;
-    return count >= rule.count;
+    for (let level = 0; level < MYTH_MAX_LEVEL; level++) {
+      const count = gameState.cards.filter(c => c.quality === 7 && (c.mythLevel || 0) === level).length;
+      if (count >= 2) return true;
+    }
+    return false;
   }
   
-  const count = gameState.cards.filter(c => c.quality === quality && c.mythLevel === 0).length;
+  const count = gameState.cards.filter(c => c.quality === quality && (c.mythLevel || 0) === 0).length;
   return count >= rule.count;
 }
 
@@ -349,14 +355,22 @@ function openSynthesizeModal(quality) {
   
   synthesizeQuality = quality;
   synthesizeSelectedIds = [];
+  synthesizeMythLevel = null;
   
   const rule = SYNTHESIZE_RULES[quality];
   const config = QUALITY_CONFIG[quality];
   
-  document.getElementById('synthesize-modal-title').textContent = `选择${config.name}卡片进行合成`;
-  document.getElementById('synthesize-modal-desc').textContent = `请选择 ${rule.count} 张${config.name}卡片进行合成`;
-  
-  renderSynthesizeSelectGrid();
+  if (quality === 7) {
+    document.getElementById('synthesize-modal-title').textContent = '选择神话卡片进行合成';
+    document.getElementById('synthesize-modal-desc').textContent = '请先选择等级，再选择2张同级卡片（同名→同名升级，异名→随机升级）';
+    renderSynthesizeMythLevelSelect();
+    document.getElementById('synthesize-myth-level-select').style.display = 'block';
+  } else {
+    document.getElementById('synthesize-modal-title').textContent = `选择${config.name}卡片进行合成`;
+    document.getElementById('synthesize-modal-desc').textContent = `请选择 ${rule.count} 张${config.name}卡片进行合成`;
+    document.getElementById('synthesize-myth-level-select').style.display = 'none';
+    renderSynthesizeSelectGrid();
+  }
   
   document.getElementById('synthesize-modal').style.display = 'flex';
 }
@@ -365,6 +379,49 @@ function closeSynthesizeModal() {
   document.getElementById('synthesize-modal').style.display = 'none';
   synthesizeQuality = null;
   synthesizeSelectedIds = [];
+  synthesizeMythLevel = null;
+}
+
+function renderSynthesizeMythLevelSelect() {
+  const container = document.getElementById('synthesize-myth-level-select');
+  container.innerHTML = '';
+  
+  const levelBtns = [];
+  for (let level = 0; level < MYTH_MAX_LEVEL; level++) {
+    const count = gameState.cards.filter(c => c.quality === 7 && (c.mythLevel || 0) === level).length;
+    if (count >= 2) {
+      const btn = document.createElement('button');
+      btn.className = 'filter-btn' + (synthesizeMythLevel === level ? ' active' : '');
+      btn.textContent = `神话${level > 0 ? '+' + level : ''} (${count}张)`;
+      btn.onclick = () => selectSynthesizeMythLevel(level);
+      levelBtns.push(btn);
+    }
+  }
+  
+  if (levelBtns.length === 0) {
+    container.innerHTML = '<p style="color:#aaa;text-align:center;">没有可合成的等级</p>';
+    return;
+  }
+  
+  levelBtns.forEach(btn => container.appendChild(btn));
+  
+  if (synthesizeMythLevel === null && levelBtns.length > 0) {
+    // Auto-select first available level
+    for (let lv = 0; lv < MYTH_MAX_LEVEL; lv++) {
+      const cnt = gameState.cards.filter(c => c.quality === 7 && (c.mythLevel || 0) === lv).length;
+      if (cnt >= 2) {
+        selectSynthesizeMythLevel(lv);
+        break;
+      }
+    }
+  }
+}
+
+function selectSynthesizeMythLevel(level) {
+  synthesizeMythLevel = level;
+  synthesizeSelectedIds = [];
+  renderSynthesizeMythLevelSelect();
+  renderSynthesizeSelectGrid();
 }
 
 function renderSynthesizeSelectGrid() {
@@ -373,11 +430,15 @@ function renderSynthesizeSelectGrid() {
   
   const rule = SYNTHESIZE_RULES[synthesizeQuality];
   
-  let filteredCards = gameState.cards.filter(c => c.quality === synthesizeQuality);
-  if (synthesizeQuality !== 7) {
-    filteredCards = filteredCards.filter(c => c.mythLevel === 0);
+  let filteredCards;
+  if (synthesizeQuality === 7) {
+    if (synthesizeMythLevel === null) {
+      grid.innerHTML = '<div style="text-align:center;color:#aaa;padding:50px">请先选择合成等级</div>';
+      return;
+    }
+    filteredCards = gameState.cards.filter(c => c.quality === 7 && (c.mythLevel || 0) === synthesizeMythLevel);
   } else {
-    filteredCards = filteredCards.filter(c => c.mythLevel === 0);
+    filteredCards = gameState.cards.filter(c => c.quality === synthesizeQuality && (c.mythLevel || 0) === 0);
   }
   
   if (filteredCards.length === 0) {
@@ -392,7 +453,7 @@ function renderSynthesizeSelectGrid() {
     el.className = `card card-${card.quality} ${isSelected ? 'selected' : ''}`;
     el.dataset.id = card.id;
     
-    const mythSuffix = card.quality === 7 && card.mythLevel > 0 ? '+' + card.mythLevel : '';
+    const mythSuffix = card.quality === 7 && (card.mythLevel || 0) > 0 ? '+' + card.mythLevel : '';
     const icon = getCardIcon(card);
     
     el.innerHTML = `
@@ -437,11 +498,51 @@ function toggleSynthesizeSelection(cardId) {
 function updateSynthesizeConfirmButton() {
   const rule = SYNTHESIZE_RULES[synthesizeQuality];
   const btn = document.getElementById('synthesize-confirm-btn');
-  btn.disabled = synthesizeSelectedIds.length !== rule.count;
+  if (synthesizeQuality === 7) {
+    btn.disabled = synthesizeSelectedIds.length !== 2 || synthesizeMythLevel === null;
+  } else {
+    btn.disabled = synthesizeSelectedIds.length !== rule.count;
+  }
 }
 
 function confirmSynthesize() {
   const rule = SYNTHESIZE_RULES[synthesizeQuality];
+  
+  if (synthesizeQuality === 7) {
+    if (synthesizeSelectedIds.length !== 2 || synthesizeMythLevel === null) {
+      showToast('请选择2张同级神话卡片！');
+      return;
+    }
+    
+    const card1 = gameState.cards.find(c => c.id === synthesizeSelectedIds[0]);
+    const card2 = gameState.cards.find(c => c.id === synthesizeSelectedIds[1]);
+    
+    if (!card1 || !card2) {
+      showToast('卡片已不存在！');
+      return;
+    }
+    
+    // Remove the 2 selected cards
+    gameState.cards = gameState.cards.filter(c => !synthesizeSelectedIds.includes(c.id));
+    
+    // Synthesize: same name → same name next level; different name → random name next level
+    const targetLevel = (synthesizeMythLevel || 0) + 1;
+    let resultCard;
+    if (card1.name === card2.name) {
+      resultCard = createCard(7, targetLevel, card1.name);
+    } else {
+      resultCard = createCard(7, targetLevel);
+    }
+    
+    gameState.cards.splice(0, 0, resultCard);
+    const levelText = targetLevel > 0 ? '+' + targetLevel : '';
+    showToast(`神话合成成功！获得神话${levelText} ${resultCard.name}`);
+    
+    closeSynthesizeModal();
+    saveGame();
+    updateUI();
+    return;
+  }
   
   if (synthesizeSelectedIds.length !== rule.count) {
     showToast(`请选择 ${rule.count} 张卡片！`);
@@ -450,15 +551,109 @@ function confirmSynthesize() {
   
   gameState.cards = gameState.cards.filter(c => !synthesizeSelectedIds.includes(c.id));
   
-  if (synthesizeQuality === 7) {
-    gameState.cards.splice(0, 0, createCard(7, 1));
-    showToast('神话升级成功！获得神话+1');
-  } else {
-    gameState.cards.splice(0, 0, createCard(rule.targetQuality));
-    showToast(`合成成功！获得 ${QUALITY_CONFIG[rule.targetQuality].name}`);
-  }
+  gameState.cards.splice(0, 0, createCard(rule.targetQuality));
+  showToast(`合成成功！获得 ${QUALITY_CONFIG[rule.targetQuality].name}`);
   
   closeSynthesizeModal();
+  saveGame();
+  updateUI();
+}
+
+function oneClickSynthesize(quality) {
+  if (!canSynthesize(quality)) {
+    showToast('卡片数量不足！');
+    return;
+  }
+  
+  if (quality === 7) {
+    oneClickMythSynthesize();
+    return;
+  }
+  
+  const rule = SYNTHESIZE_RULES[quality];
+  const eligibleCards = gameState.cards.filter(c => c.quality === quality && (c.mythLevel || 0) === 0);
+  const totalCount = eligibleCards.length;
+  const batchCount = Math.floor(totalCount / rule.count);
+  
+  if (batchCount === 0) {
+    showToast('卡片数量不足！');
+    return;
+  }
+  
+  // Remove cards used for synthesis (take first batchCount * rule.count cards)
+  const usedIds = eligibleCards.slice(0, batchCount * rule.count).map(c => c.id);
+  gameState.cards = gameState.cards.filter(c => !usedIds.includes(c.id));
+  
+  // Create synthesized cards
+  for (let i = 0; i < batchCount; i++) {
+    gameState.cards.splice(0, 0, createCard(rule.targetQuality));
+  }
+  
+  showToast(`一键合成完成！消耗${batchCount * rule.count}张，获得${batchCount}张 ${QUALITY_CONFIG[rule.targetQuality].name}`);
+  
+  saveGame();
+  updateUI();
+}
+
+function oneClickMythSynthesize() {
+  let totalConsumed = 0;
+  let totalCreated = 0;
+  
+  // Process bottom-up: level 0 to MYTH_MAX_LEVEL - 1
+  for (let level = 0; level < MYTH_MAX_LEVEL; level++) {
+    let hasMore = true;
+    while (hasMore) {
+      // Get all cards of this mythLevel
+      const levelCards = gameState.cards.filter(c => c.quality === 7 && (c.mythLevel || 0) === level);
+      
+      // Group by name
+      const nameGroups = {};
+      levelCards.forEach(card => {
+        if (!nameGroups[card.name]) nameGroups[card.name] = [];
+        nameGroups[card.name].push(card);
+      });
+      
+      let pairFound = false;
+      
+      // First: process same-name pairs
+      for (const [name, cards] of Object.entries(nameGroups)) {
+        if (cards.length >= 2) {
+          const usedIds = cards.slice(0, 2).map(c => c.id);
+          gameState.cards = gameState.cards.filter(c => !usedIds.includes(c.id));
+          gameState.cards.splice(0, 0, createCard(7, level + 1, name));
+          totalConsumed += 2;
+          totalCreated++;
+          pairFound = true;
+          break; // Process one pair at a time, recheck groups
+        }
+      }
+      
+      if (pairFound) {
+        hasMore = true;
+        continue;
+      }
+      
+      // Second: process different-name pairs
+      const remainingCards = gameState.cards.filter(c => c.quality === 7 && (c.mythLevel || 0) === level);
+      if (remainingCards.length >= 2) {
+        const usedIds = remainingCards.slice(0, 2).map(c => c.id);
+        gameState.cards = gameState.cards.filter(c => !usedIds.includes(c.id));
+        gameState.cards.splice(0, 0, createCard(7, level + 1));
+        totalConsumed += 2;
+        totalCreated++;
+        pairFound = true;
+      }
+      
+      hasMore = pairFound;
+    }
+  }
+  
+  if (totalCreated > 0) {
+    showToast(`神话一键合成完成！消耗${totalConsumed}张，获得${totalCreated}张`);
+  } else {
+    showToast('没有可合成的神话卡片！');
+  }
+  
   saveGame();
   updateUI();
 }
@@ -1034,6 +1229,226 @@ function closeBattleResult() {
   renderLevelGrid();
   gameState.battleState = null;
   selectedTarget = null;
+}
+
+function quickBattle() {
+  if (!gameState.battleState) return;
+  
+  stopAutoBattle();
+  
+  const playerCards = gameState.battleState.playerCards.filter(c => c.currentHp > 0);
+  const enemyCards = gameState.battleState.enemyCards.filter(c => c.currentHp > 0);
+  
+  if (playerCards.length === 0 || enemyCards.length === 0) {
+    checkBattleResult();
+    return;
+  }
+  
+  // Calculate total power for both sides
+  function calcPower(cards) {
+    return cards.reduce((sum, c) => {
+      const effectiveAtk = c.attack * (1 + c.critRate * (c.critDamage - 1));
+      const power = effectiveAtk + c.hp * 0.3 + c.defense * 0.5 + (c.hasUltimate ? c.ultimateDamage * 0.3 : 0);
+      return sum + power;
+    }, 0);
+  }
+  
+  const playerPower = calcPower(playerCards);
+  const enemyPower = calcPower(enemyCards);
+  const ratio = playerPower / (enemyPower || 1);
+  
+  let isVictory;
+  if (ratio >= 1.2) {
+    isVictory = true;
+  } else if (ratio < 0.8) {
+    isVictory = false;
+  } else {
+    isVictory = Math.random() < 0.5 + (ratio - 0.8) * 1.25;
+  }
+  
+  gameState.battleState.log.push(`[快速战斗] 评估结果: ${isVictory ? '胜利' : '失败'} (战力比: ${ratio.toFixed(2)})`);
+  
+  // Apply result immediately
+  if (isVictory) {
+    enemyCards.forEach(c => c.currentHp = 0);
+  } else {
+    playerCards.forEach(c => c.currentHp = 0);
+  }
+  
+  checkBattleResult();
+}
+
+// ---- 扫荡功能 ----
+let sweepInterval = null;
+let sweepStartTime = 0;
+let sweepTotalCount = 0;
+let sweepCompleted = 0;
+let sweepWins = 0;
+let sweepLosses = 0;
+let sweepTotalGold = 0;
+let sweepDroppedCards = [];
+
+function openSweepModal() {
+  if (!gameState.battleCards || gameState.battleCards.length !== 3) {
+    showToast('请先在背包中选择3张卡片！');
+    switchTab('inventory');
+    return;
+  }
+  
+  document.getElementById('sweep-modal').style.display = 'flex';
+  document.getElementById('sweep-progress').style.display = 'none';
+  document.getElementById('sweep-result').style.display = 'none';
+  document.querySelector('.sweep-count-options').style.display = 'flex';
+}
+
+function closeSweepModal() {
+  if (sweepInterval) {
+    clearInterval(sweepInterval);
+    sweepInterval = null;
+  }
+  document.getElementById('sweep-modal').style.display = 'none';
+}
+
+function startSweep(count) {
+  sweepTotalCount = count;
+  sweepCompleted = 0;
+  sweepWins = 0;
+  sweepLosses = 0;
+  sweepTotalGold = 0;
+  sweepDroppedCards = [];
+  
+  document.querySelector('.sweep-count-options').style.display = 'none';
+  document.getElementById('sweep-progress').style.display = 'block';
+  document.getElementById('sweep-result').style.display = 'none';
+  document.getElementById('sweep-progress-text').textContent = '扫荡中... 0/' + count;
+  document.getElementById('sweep-progress-fill').style.width = '0%';
+  
+  sweepStartTime = Date.now();
+  const totalDuration = 10000; // 10 seconds
+  const intervalMs = Math.min(200, Math.floor(totalDuration / count));
+  
+  sweepInterval = setInterval(() => {
+    const elapsed = Date.now() - sweepStartTime;
+    const shouldComplete = Math.min(Math.floor((elapsed / totalDuration) * count), count);
+    
+    while (sweepCompleted < shouldComplete) {
+      const level = gameState.maxLevel;
+      const result = simulateBattle(level);
+      sweepCompleted++;
+      
+      if (result.isVictory) {
+        sweepWins++;
+        sweepTotalGold += result.gold;
+        result.droppedCards.forEach(c => {
+          sweepDroppedCards.push(c);
+          gameState.cards.push(c);
+          if (!gameState.collectedCards.includes(c.name)) {
+            gameState.collectedCards.push(c.name);
+          }
+        });
+      } else {
+        sweepLosses++;
+        sweepTotalGold += result.gold;
+      }
+    }
+    
+    const progress = Math.min(100, (sweepCompleted / sweepTotalCount) * 100);
+    document.getElementById('sweep-progress-fill').style.width = progress + '%';
+    document.getElementById('sweep-progress-text').textContent = `扫荡中... ${sweepCompleted}/${sweepTotalCount}`;
+    
+    if (sweepCompleted >= sweepTotalCount) {
+      finishSweep();
+    }
+  }, intervalMs);
+}
+
+function finishSweep() {
+  if (sweepInterval) {
+    clearInterval(sweepInterval);
+    sweepInterval = null;
+  }
+  
+  document.getElementById('sweep-progress').style.display = 'none';
+  document.getElementById('sweep-result').style.display = 'block';
+  
+  gameState.gold += sweepTotalGold;
+  
+  let resultHTML = `<h3 style="color:#ffd700;">扫荡完成！(${sweepTotalCount}次)</h3>`;
+  resultHTML += `<p>胜利: <span style="color:#44aa44;">${sweepWins}</span> | 失败: <span style="color:#ff4444;">${sweepLosses}</span></p>`;
+  resultHTML += `<p>获得金币: <span style="color:#ffd700;">${Math.floor(sweepTotalGold)}</span></p>`;
+  
+  if (sweepDroppedCards.length > 0) {
+    resultHTML += `<p>掉落卡片: ${sweepDroppedCards.length}张</p>`;
+  }
+  
+  resultHTML += `<div style="margin-top:20px;">
+    <button class="action-btn primary" onclick="closeSweepModal()">确定</button>
+  </div>`;
+  
+  document.getElementById('sweep-result').innerHTML = resultHTML;
+  
+  saveGame();
+  updateUI();
+  renderLevelGrid();
+}
+
+function simulateBattle(level) {
+  const globalBonus = getGlobalBonus();
+  
+  const playerCards = gameState.battleCards.map(card => {
+    let bonus = globalBonus;
+    if (card.quality === 7) {
+      bonus += getCollectionBonus(7, card.mythLevel || 0);
+    }
+    if (bonus > 0) {
+      return {
+        ...card,
+        attack: Math.floor(card.attack * (1 + bonus)),
+        hp: Math.floor(card.hp * (1 + bonus)),
+        defense: Math.floor(card.defense * (1 + bonus))
+      };
+    }
+    return { ...card };
+  });
+  
+  const enemyCards = generateEnemyCards(level);
+  
+  function calcPower(cards) {
+    return cards.reduce((sum, c) => {
+      const effectiveAtk = c.attack * (1 + c.critRate * (c.critDamage - 1));
+      return sum + effectiveAtk + c.hp * 0.3 + c.defense * 0.5 + (c.hasUltimate ? c.ultimateDamage * 0.3 : 0);
+    }, 0);
+  }
+  
+  const playerPower = calcPower(playerCards);
+  const enemyPower = calcPower(enemyCards);
+  const ratio = playerPower / (enemyPower || 1);
+  
+  let isVictory;
+  if (ratio >= 1.2) {
+    isVictory = true;
+  } else if (ratio < 0.8) {
+    isVictory = false;
+  } else {
+    isVictory = Math.random() < 0.5 + (ratio - 0.8) * 1.25;
+  }
+  
+  // Calculate reward
+  let gold = 0;
+  enemyCards.forEach(card => {
+    const config = QUALITY_CONFIG[card.quality];
+    gold += card.attack * 0.5 * config.rewardMultiplier;
+  });
+  
+  const isBoss = level % LEVEL_CONFIG.bossInterval === 0;
+  if (isBoss) gold *= 1.5;
+  
+  const finalGold = isVictory ? Math.floor(gold) : Math.floor(gold * 0.2);
+  
+  // Drop cards
+  const droppedCards = isVictory ? dropCards(level) : [];
+  
+  return { isVictory, gold: finalGold, droppedCards };
 }
 
 function renderCollection() {

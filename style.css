@@ -579,6 +579,17 @@ body {
   transition: all 0.3s;
 }
 
+.synthesize-btn-group {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.synthesize-btn.batch {
+  background: linear-gradient(135deg, #ff6347, #ff4500);
+  color: #fff;
+}
+
 .synthesize-btn:hover {
   transform: scale(1.05);
 }
@@ -803,6 +814,68 @@ body {
   gap: 20px;
 }
 
+.quick-battle-btn {
+  background: linear-gradient(135deg, #ff6347, #ff8c00) !important;
+  color: #fff !important;
+  font-weight: bold;
+}
+
+.sweep-area {
+  text-align: center;
+  margin-top: 15px;
+}
+
+.sweep-btn {
+  background: linear-gradient(135deg, #ffd700, #ff8c00) !important;
+  color: #000 !important;
+  font-weight: bold;
+  font-size: 1.1em;
+  padding: 12px 40px;
+}
+
+.sweep-count-options {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+.sweep-count-btn {
+  padding: 15px 25px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ffd700, #ff8c00);
+  color: #000;
+  font-size: 1.1em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+  min-width: 100px;
+}
+
+.sweep-count-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+}
+
+.sweep-progress-bar {
+  width: 100%;
+  height: 20px;
+  background: #333;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.sweep-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ffd700, #ff8c00);
+  border-radius: 10px;
+  transition: width 0.3s;
+  width: 0%;
+}
+
 .battle-result {
   text-align: center;
   padding: 50px;
@@ -1017,6 +1090,32 @@ body {
   max-width: 400px;
   width: 90%;
   position: relative;
+}
+
+#synthesize-myth-level-select {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#synthesize-myth-level-select .filter-btn {
+  padding: 8px 15px;
+  border: none;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+#synthesize-myth-level-select .filter-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+#synthesize-myth-level-select .filter-btn.active {
+  background: #ffd700;
+  color: #000;
 }
 
 .synthesize-select-grid {
@@ -1473,6 +1572,18 @@ body {
     text-align: center;
   }
 
+  .synthesize-btn-group {
+    flex: 1 1 100%;
+    gap: 6px;
+    margin-left: 0;
+  }
+
+  .synthesize-btn-group .synthesize-btn {
+    flex: 1;
+    padding: 8px 6px;
+    font-size: 0.75em;
+  }
+
   /* ===== 战斗 ===== */
   .battle-area {
     max-width: 100%;
@@ -1573,6 +1684,29 @@ body {
     padding: 10px 8px;
     font-size: 0.8em;
     min-height: 44px;
+  }
+
+  .quick-battle-btn {
+    font-size: 0.8em;
+  }
+
+  .sweep-area {
+    margin-top: 10px;
+  }
+
+  .sweep-btn {
+    padding: 10px 30px;
+    font-size: 0.95em;
+  }
+
+  .sweep-count-options {
+    gap: 8px;
+  }
+
+  .sweep-count-btn {
+    padding: 12px 18px;
+    font-size: 0.95em;
+    min-width: 70px;
   }
 
   .battle-result {

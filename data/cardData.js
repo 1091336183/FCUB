@@ -26,6 +26,8 @@ const CARD_NAMES = {
   7: ['创世神', '毁灭之神', '命运女神', '虚空行者', '秩序之主', '混沌本源', '永恒守护者', '万界至尊']
 };
 
+const MYTH_MAX_LEVEL = 10;
+
 const SYNTHESIZE_RULES = {
   1: { count: 3, targetQuality: 2 },
   2: { count: 3, targetQuality: 3 },
@@ -33,7 +35,7 @@ const SYNTHESIZE_RULES = {
   4: { count: 5, targetQuality: 5 },
   5: { count: 10, targetQuality: 6 },
   6: { count: 15, targetQuality: 7 },
-  7: { count: 2, targetMythLevel: '+1' }
+  7: { count: 2, mythMaxLevel: 10 }
 };
 
 const GACHA_CONFIG = {

@@ -156,7 +156,10 @@
               <div class="synthesize-output">
                 <span class="quality-badge" style="background:#00ff00">精良</span>
               </div>
-              <button class="synthesize-btn" onclick="openSynthesizeModal(1)">合成</button>
+              <div class="synthesize-btn-group">
+                <button class="synthesize-btn" onclick="openSynthesizeModal(1)">合成</button>
+                <button class="synthesize-btn batch" onclick="oneClickSynthesize(1)">一键合成</button>
+              </div>
             </div>
             <div class="synthesize-item" data-quality="2">
               <div class="synthesize-input">
@@ -167,7 +170,10 @@
               <div class="synthesize-output">
                 <span class="quality-badge" style="background:#0080ff">优秀</span>
               </div>
-              <button class="synthesize-btn" onclick="openSynthesizeModal(2)">合成</button>
+              <div class="synthesize-btn-group">
+                <button class="synthesize-btn" onclick="openSynthesizeModal(2)">合成</button>
+                <button class="synthesize-btn batch" onclick="oneClickSynthesize(2)">一键合成</button>
+              </div>
             </div>
             <div class="synthesize-item" data-quality="3">
               <div class="synthesize-input">
@@ -178,7 +184,10 @@
               <div class="synthesize-output">
                 <span class="quality-badge" style="background:#a335ee">杰出</span>
               </div>
-              <button class="synthesize-btn" onclick="openSynthesizeModal(3)">合成</button>
+              <div class="synthesize-btn-group">
+                <button class="synthesize-btn" onclick="openSynthesizeModal(3)">合成</button>
+                <button class="synthesize-btn batch" onclick="oneClickSynthesize(3)">一键合成</button>
+              </div>
             </div>
             <div class="synthesize-item" data-quality="4">
               <div class="synthesize-input">
@@ -189,7 +198,10 @@
               <div class="synthesize-output">
                 <span class="quality-badge" style="background:#ff8000">史诗</span>
               </div>
-              <button class="synthesize-btn" onclick="openSynthesizeModal(4)">合成</button>
+              <div class="synthesize-btn-group">
+                <button class="synthesize-btn" onclick="openSynthesizeModal(4)">合成</button>
+                <button class="synthesize-btn batch" onclick="oneClickSynthesize(4)">一键合成</button>
+              </div>
             </div>
             <div class="synthesize-item" data-quality="5">
               <div class="synthesize-input">
@@ -200,7 +212,10 @@
               <div class="synthesize-output">
                 <span class="quality-badge" style="background:#ff0000">传奇</span>
               </div>
-              <button class="synthesize-btn" onclick="openSynthesizeModal(5)">合成</button>
+              <div class="synthesize-btn-group">
+                <button class="synthesize-btn" onclick="openSynthesizeModal(5)">合成</button>
+                <button class="synthesize-btn batch" onclick="oneClickSynthesize(5)">一键合成</button>
+              </div>
             </div>
             <div class="synthesize-item" data-quality="6">
               <div class="synthesize-input">
@@ -211,18 +226,24 @@
               <div class="synthesize-output">
                 <span class="quality-badge" style="background:#ffd700">神话</span>
               </div>
-              <button class="synthesize-btn" onclick="openSynthesizeModal(6)">合成</button>
+              <div class="synthesize-btn-group">
+                <button class="synthesize-btn" onclick="openSynthesizeModal(6)">合成</button>
+                <button class="synthesize-btn batch" onclick="oneClickSynthesize(6)">一键合成</button>
+              </div>
             </div>
             <div class="synthesize-item" data-quality="7">
               <div class="synthesize-input">
-                <span class="quality-badge" style="background:#ffd700">神话</span>
-                <span>×2</span>
+                <span class="quality-badge" style="background:#ffd700">神话 (同级×2)</span>
+                <span></span>
               </div>
               <div class="synthesize-arrow">→</div>
               <div class="synthesize-output">
-                <span class="quality-badge" style="background:#ffd700">神话+1</span>
+                <span class="quality-badge" style="background:#ffd700">神话+1~10</span>
               </div>
-              <button class="synthesize-btn" onclick="openSynthesizeModal(7)">升级</button>
+              <div class="synthesize-btn-group">
+                <button class="synthesize-btn" onclick="openSynthesizeModal(7)">合成</button>
+                <button class="synthesize-btn batch" onclick="oneClickSynthesize(7)">一键合成</button>
+              </div>
             </div>
           </div>
         </div>
@@ -235,6 +256,11 @@
           <div class="level-selector">
             <h3>选择关卡</h3>
             <div class="level-grid" id="level-grid"></div>
+            <div class="sweep-area">
+              <button class="action-btn sweep-btn" onclick="openSweepModal()">
+                <i class="fa fa-bolt"></i> 扫荡
+              </button>
+            </div>
           </div>
           
           <div class="battle-scene" id="battle-scene" style="display:none">
@@ -262,6 +288,7 @@
             <div class="battle-actions">
               <button class="action-btn primary" onclick="playerAttack()">攻击</button>
               <button class="action-btn" id="auto-battle-btn" onclick="toggleAutoBattle()">自动战斗</button>
+              <button class="action-btn quick-battle-btn" onclick="quickBattle()">快速战斗</button>
               <button class="action-btn" onclick="battleFlee()">逃跑</button>
             </div>
           </div>
@@ -319,11 +346,33 @@
         <span class="close-btn" onclick="closeSynthesizeModal()">&times;</span>
         <h3 id="synthesize-modal-title">选择合成卡片</h3>
         <p id="synthesize-modal-desc">请选择卡片进行合成</p>
+        <div id="synthesize-myth-level-select" style="display:none; margin-bottom:15px;"></div>
         <div class="synthesize-select-grid" id="synthesize-select-grid"></div>
         <div class="synthesize-modal-actions">
           <button class="action-btn secondary" onclick="closeSynthesizeModal()">取消</button>
           <button class="action-btn primary" onclick="confirmSynthesize()" id="synthesize-confirm-btn">确认合成</button>
         </div>
+      </div>
+    </div>
+
+    <div id="sweep-modal" class="modal" style="display:none">
+      <div class="modal-content" style="max-width: 500px; width: 90%;">
+        <span class="close-btn" onclick="closeSweepModal()">&times;</span>
+        <h3>扫荡设置</h3>
+        <p style="margin:10px 0;color:#aaa;">选择扫荡次数，每次10秒完成</p>
+        <div class="sweep-count-options">
+          <button class="sweep-count-btn" onclick="startSweep(10)">×10</button>
+          <button class="sweep-count-btn" onclick="startSweep(100)">×100</button>
+          <button class="sweep-count-btn" onclick="startSweep(1000)">×1000</button>
+          <button class="sweep-count-btn" onclick="startSweep(10000)">×10000</button>
+        </div>
+        <div id="sweep-progress" style="display:none; margin-top:20px; text-align:center;">
+          <div class="sweep-progress-bar">
+            <div class="sweep-progress-fill" id="sweep-progress-fill"></div>
+          </div>
+          <p id="sweep-progress-text" style="color:#ffd700;margin-top:10px;">扫荡中...</p>
+        </div>
+        <div id="sweep-result" style="display:none; margin-top:20px; text-align:center;"></div>
       </div>
     </div>
 
