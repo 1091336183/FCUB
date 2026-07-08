@@ -1410,11 +1410,13 @@ function showBattleResult(isVictory) {
     victoryReward += cardReward;
   });
   
+  const baseReward = victoryReward;
+  
   if (gameState.battleState.isBoss) {
     victoryReward = victoryReward * 1.5;
   }
   
-  const displayReward = isVictory ? victoryReward.toFixed(2) : (victoryReward * 0.2).toFixed(2);
+  const displayReward = isVictory ? victoryReward.toFixed(2) : (baseReward * 0.2).toFixed(2);
   const totalReward = parseFloat(displayReward);
   
   if (isVictory) {
@@ -1825,10 +1827,11 @@ function simulateBattle(level) {
     gold += card.attack * 0.5 * config.rewardMultiplier;
   });
   
+  const baseGold = gold;
   const isBoss = level % LEVEL_CONFIG.bossInterval === 0;
   if (isBoss) gold *= 1.5;
   
-  const finalGold = isVictory ? Math.floor(gold) : Math.floor(gold * 0.2);
+  const finalGold = isVictory ? Math.floor(gold) : Math.floor(baseGold * 0.2);
   
   // Drop cards
   const droppedCards = isVictory ? dropCards(level) : [];
