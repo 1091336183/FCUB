@@ -18,6 +18,10 @@ let synthesizeMythLevel = null;
 let isAutoBattle = false;
 let autoBattleTimeout = null;
 
+const MAX_INVENTORY_CARDS = 20000;
+const CARDS_PER_PAGE = 1000;
+let currentInventoryPage = 1;
+
 function init() {
   loadGame();
   updateUI();
@@ -42,6 +46,18 @@ function loadGame() {
   const saved = localStorage.getItem('cardGame_player');
   if (saved) {
     gameState = JSON.parse(saved);
+    // 旧数据迁移：确保所有卡片有locked字段
+    if (gameState.cards) {
+      gameState.cards.forEach(card => {
+        if (card.locked === undefined) card.locked = false;
+      });
+    }
+    // 从持久化的battleCards同步selectedCardIds
+    if (gameState.battleCards && gameState.battleCards.length > 0) {
+      selectedCardIds = gameState.battleCards
+        .map(c => c ? c.id : null)
+        .filter(id => id !== null);
+    }
   } else {
     initializeNewGame();
   }
@@ -61,11 +77,16 @@ function initializeNewGame() {
   saveGame();
 }
 
+function formatGold(value) {
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  return parseFloat(num.toFixed(2));
+}
+
 function updateUI() {
-  document.getElementById('gold-display').textContent = gameState.gold;
+  document.getElementById('gold-display').textContent = formatGold(gameState.gold);
   document.getElementById('level-display').textContent = '第' + gameState.currentLevel + '关';
   document.getElementById('max-level-display').textContent = '最高: ' + gameState.maxLevel;
-  document.getElementById('home-gold').textContent = gameState.gold;
+  document.getElementById('home-gold').textContent = formatGold(gameState.gold);
   document.getElementById('home-card-count').textContent = gameState.cards.length;
   document.getElementById('home-level').textContent = gameState.currentLevel;
   
@@ -128,6 +149,11 @@ function performGacha(type) {
   if (gameState.gold < config.price) {
     showToast('金币不足！');
     return;
+  }
+  
+  const isOverflow = gameState.cards.length >= MAX_INVENTORY_CARDS;
+  if (isOverflow) {
+    showToast('背包已满！临时存放可以超过20000张，请及时清理背包卡片');
   }
   
   gameState.gold -= config.price;
@@ -250,11 +276,18 @@ function createCardElement(card) {
   
   const mythSuffix = card.quality === 7 && card.mythLevel > 0 ? '+' + card.mythLevel : '';
   const icon = getCardIcon(card);
+  const isInBattle = isCardInBattle(card.id);
+  const isSelected = selectedCardIds.includes(card.id);
+  const ultimateText = card.hasUltimate ? '必杀技 攻击×3' : '';
+  const canBattle = !isInBattle && !isSelected && selectedCardIds.length < 3;
   
   el.innerHTML = `
+    <div class="card-lock-icon ${card.locked ? 'locked' : ''}" onclick="event.stopPropagation(); toggleCardLock('${card.id}')" title="${card.locked ? '已锁定(点击解锁)' : '未锁定(点击锁定)'}">
+      ${card.locked ? '🔒' : '🔓'}
+    </div>
     <div class="card-header">
       <div class="card-icon">${icon}</div>
-      <div class="card-name">${card.name}</div>
+      <div class="card-name">${card.name}${isInBattle ? ' <span style="font-size:0.7em;">⚔️</span>' : ''}</div>
       <div class="quality-badge">${config.name}${mythSuffix}</div>
     </div>
     <div class="card-stats">
@@ -263,10 +296,11 @@ function createCardElement(card) {
       <div class="stat-row"><span>防御</span><span>${card.defense}</span></div>
       <div class="stat-row"><span>暴击</span><span>${(card.critRate * 100).toFixed(0)}%</span></div>
     </div>
-    ${card.hasUltimate ? '<div style="text-align:center;color:#ffd700;font-size:0.8em;margin-top:5px">必杀技 +500</div>' : ''}
+    ${card.hasUltimate ? '<div style="text-align:center;color:#ffd700;font-size:0.8em;margin-top:2px">' + ultimateText + '</div>' : ''}
     <div class="card-actions" style="margin-top:auto">
-      <button class="card-btn sell" onclick="sellCard('${card.id}')">出售</button>
-      <button class="card-btn select" onclick="toggleCardSelection('${card.id}')">${selectedCardIds.includes(card.id) ? '取消' : '选中'}</button>
+      ${isInBattle ? `<div class="card-btn battle in-battle" onclick="event.stopPropagation(); cancelBattleCard('${card.id}')">⚔️ 已出战</div>` : ''}
+      ${isSelected && !isInBattle ? `<button class="card-btn battle selected" onclick="event.stopPropagation(); toggleCardSelection('${card.id}')">取消出战</button>` : ''}
+      ${canBattle ? `<button class="card-btn battle" onclick="event.stopPropagation(); toggleCardSelection('${card.id}')">出战</button>` : ''}
     </div>
   `;
   
@@ -289,32 +323,80 @@ function renderInventory() {
     return b.attack - a.attack;
   });
   
+  const totalPages = Math.max(1, Math.ceil(filteredCards.length / CARDS_PER_PAGE));
+  currentInventoryPage = Math.min(currentInventoryPage, totalPages);
+  
+  const startIdx = (currentInventoryPage - 1) * CARDS_PER_PAGE;
+  const endIdx = Math.min(startIdx + CARDS_PER_PAGE, filteredCards.length);
+  const pageCards = filteredCards.slice(startIdx, endIdx);
+  
   if (filteredCards.length === 0) {
     grid.innerHTML = '<div style="text-align:center;color:#aaa;padding:50px">暂无卡片</div>';
+    renderInventoryPagination(0);
     return;
   }
   
-  filteredCards.forEach(card => {
+  pageCards.forEach(card => {
     const el = createCardElement(card);
     if (selectedCardIds.includes(card.id)) {
       el.classList.add('selected');
     }
     grid.appendChild(el);
   });
+  
+  renderInventoryPagination(filteredCards.length, currentFilter);
+}
+
+function renderInventoryPagination(totalCount, filter) {
+  const paginationContainer = document.getElementById('inventory-pagination');
+  if (!paginationContainer) return;
+  
+  const totalPages = Math.ceil(totalCount / CARDS_PER_PAGE);
+  if (totalPages <= 1) {
+    paginationContainer.innerHTML = '';
+    return;
+  }
+  
+  let html = `<span class="inventory-count">${totalCount}/${MAX_INVENTORY_CARDS}张</span>`;
+  html += `<button class="page-btn" onclick="goToInventoryPage(${currentInventoryPage - 1})" ${currentInventoryPage <= 1 ? 'disabled' : ''}>◀</button>`;
+  
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === currentInventoryPage) {
+      html += `<button class="page-btn active">${i}</button>`;
+    } else {
+      html += `<button class="page-btn" onclick="goToInventoryPage(${i})">${i}</button>`;
+    }
+  }
+  
+  html += `<button class="page-btn" onclick="goToInventoryPage(${currentInventoryPage + 1})" ${currentInventoryPage >= totalPages ? 'disabled' : ''}>▶</button>`;
+  paginationContainer.innerHTML = html;
+}
+
+function goToInventoryPage(page) {
+  currentInventoryPage = page;
+  renderInventory();
 }
 
 function filterCards(filter) {
   currentFilter = filter;
+  currentInventoryPage = 1;
   document.querySelectorAll('.inventory-filter .filter-btn').forEach(btn => btn.classList.remove('active'));
   document.querySelector(`.inventory-filter .filter-btn[data-filter="${filter}"]`).classList.add('active');
   renderInventory();
 }
 
 function toggleCardSelection(cardId) {
+  const card = gameState.cards.find(c => c.id === cardId);
+  if (!card) return;
+  
   const index = selectedCardIds.indexOf(cardId);
   if (index > -1) {
     selectedCardIds.splice(index, 1);
   } else {
+    if (isCardInBattle(cardId)) {
+      showToast('出战中的卡片不能选中！');
+      return;
+    }
     if (selectedCardIds.length >= 3) {
       showToast('最多选择3张卡片');
       return;
@@ -324,22 +406,153 @@ function toggleCardSelection(cardId) {
   renderInventory();
 }
 
-function sellCard(cardId) {
+function toggleCardLock(cardId) {
   const card = gameState.cards.find(c => c.id === cardId);
   if (!card) return;
+  card.locked = !card.locked;
+  showToast(card.locked ? '卡片已锁定' : '卡片已解锁');
+  saveGame();
+  renderInventory();
+}
+
+function isCardInBattle(cardId) {
+  return gameState.battleCards.some(c => c.id === cardId);
+}
+
+function sellCard(cardId) {
+  openBulkSellModal();
+}
+
+// ===== 批量出售 =====
+let bulkSellSelectedIds = [];
+let bulkSellFilter = 'all';
+
+function openBulkSellModal() {
+  bulkSellSelectedIds = [];
+  bulkSellFilter = 'all';
+  document.querySelectorAll('.bulk-sell-filter .filter-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelector('.bulk-sell-filter .filter-btn[data-filter="all"]').classList.add('active');
+  document.getElementById('bulk-sell-modal').style.display = 'flex';
+  renderBulkSellGrid();
+}
+
+function closeBulkSellModal() {
+  document.getElementById('bulk-sell-modal').style.display = 'none';
+  bulkSellSelectedIds = [];
+}
+
+function filterBulkSell(filter) {
+  bulkSellFilter = filter;
+  bulkSellSelectedIds = [];
+  document.querySelectorAll('.bulk-sell-filter .filter-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelector(`.bulk-sell-filter .filter-btn[data-filter="${filter}"]`).classList.add('active');
+  renderBulkSellGrid();
+}
+
+function renderBulkSellGrid() {
+  const grid = document.getElementById('bulk-sell-grid');
   
-  const config = QUALITY_CONFIG[card.quality];
-  let sellPrice = config.sellPrice;
+  // Filter: exclude locked and battle cards
+  let cards = gameState.cards.filter(c => !c.locked && !isCardInBattle(c.id));
   
-  if (card.quality === 7 && card.mythLevel > 0) {
-    sellPrice = Math.floor(sellPrice * Math.pow(1.1, card.mythLevel));
+  if (bulkSellFilter !== 'all') {
+    cards = cards.filter(c => c.quality === parseInt(bulkSellFilter));
   }
   
-  gameState.gold += sellPrice;
-  gameState.cards = gameState.cards.filter(c => c.id !== cardId);
-  selectedCardIds = selectedCardIds.filter(id => id !== cardId);
+  cards.sort((a, b) => {
+    if (b.quality !== a.quality) return b.quality - a.quality;
+    return b.attack - a.attack;
+  });
   
-  showToast(`出售成功！获得 ${sellPrice} 金币`);
+  if (cards.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;color:#aaa;padding:40px">无可用出售卡片</div>';
+    updateBulkSellCount();
+    return;
+  }
+  
+  grid.innerHTML = cards.map(card => {
+    const config = QUALITY_CONFIG[card.quality];
+    const icon = getCardIcon(card);
+    const mythSuffix = card.quality === 7 && card.mythLevel > 0 ? '+' + card.mythLevel : '';
+    const sellPrice = card.quality === 7 && card.mythLevel > 0 
+      ? Math.floor(config.sellPrice * Math.pow(1.1, card.mythLevel)) 
+      : config.sellPrice;
+    const isSelected = bulkSellSelectedIds.includes(card.id);
+    
+    return `
+      <div class="bulk-sell-card ${isSelected ? 'selected' : ''}" onclick="toggleBulkSellCard('${card.id}')">
+        <div class="card-icon" style="font-size:1.8em;">${icon}</div>
+        <div style="font-size:0.8em;">${card.name}${mythSuffix}</div>
+        <div class="quality-badge" style="font-size:0.7em;">${config.name}</div>
+        <div style="color:#ffd700;font-size:0.8em;">${formatGold(sellPrice)}💰</div>
+      </div>
+    `;
+  }).join('');
+  
+  updateBulkSellCount();
+}
+
+function toggleBulkSellCard(cardId) {
+  const idx = bulkSellSelectedIds.indexOf(cardId);
+  if (idx > -1) {
+    bulkSellSelectedIds.splice(idx, 1);
+  } else {
+    bulkSellSelectedIds.push(cardId);
+  }
+  renderBulkSellGrid();
+}
+
+function toggleBulkSelectAll() {
+  let cards = gameState.cards.filter(c => !c.locked && !isCardInBattle(c.id));
+  if (bulkSellFilter !== 'all') {
+    cards = cards.filter(c => c.quality === parseInt(bulkSellFilter));
+  }
+  
+  if (bulkSellSelectedIds.length === cards.length) {
+    bulkSellSelectedIds = [];
+  } else {
+    bulkSellSelectedIds = cards.map(c => c.id);
+  }
+  renderBulkSellGrid();
+}
+
+function updateBulkSellCount() {
+  const countEl = document.getElementById('bulk-sell-count');
+  const btnEl = document.getElementById('bulk-select-all-btn');
+  if (countEl) countEl.textContent = `已选: ${bulkSellSelectedIds.length}张`;
+  
+  let cards = gameState.cards.filter(c => !c.locked && !isCardInBattle(c.id));
+  if (bulkSellFilter !== 'all') {
+    cards = cards.filter(c => c.quality === parseInt(bulkSellFilter));
+  }
+  if (btnEl) btnEl.textContent = bulkSellSelectedIds.length === cards.length ? '取消全选' : '全选';
+}
+
+function confirmBulkSell() {
+  if (bulkSellSelectedIds.length === 0) {
+    showToast('请选择要出售的卡片');
+    return;
+  }
+  
+  let totalPrice = 0;
+  bulkSellSelectedIds.forEach(id => {
+    const card = gameState.cards.find(c => c.id === id);
+    if (!card) return;
+    const config = QUALITY_CONFIG[card.quality];
+    let sellPrice = config.sellPrice;
+    if (card.quality === 7 && card.mythLevel > 0) {
+      sellPrice = Math.floor(sellPrice * Math.pow(1.1, card.mythLevel));
+    }
+    totalPrice += sellPrice;
+  });
+  
+  gameState.gold += totalPrice;
+  gameState.cards = gameState.cards.filter(c => !bulkSellSelectedIds.includes(c.id));
+  selectedCardIds = selectedCardIds.filter(id => !bulkSellSelectedIds.includes(id));
+  
+  showToast(`出售成功！${bulkSellSelectedIds.length}张卡片，获得 ${formatGold(totalPrice)} 金币`);
+  
+  closeBulkSellModal();
   saveGame();
   updateUI();
 }
@@ -351,23 +564,48 @@ function sellSelectedCards() {
   }
   
   let totalPrice = 0;
+  let skippedLocked = 0;
+  let skippedBattle = 0;
+  const toSell = [];
+  
   selectedCardIds.forEach(id => {
     const card = gameState.cards.find(c => c.id === id);
-    if (card) {
-      const config = QUALITY_CONFIG[card.quality];
-      let sellPrice = config.sellPrice;
-      if (card.quality === 7 && card.mythLevel > 0) {
-        sellPrice = Math.floor(sellPrice * Math.pow(1.1, card.mythLevel));
-      }
-      totalPrice += sellPrice;
+    if (!card) return;
+    
+    if (card.locked) {
+      skippedLocked++;
+      return;
     }
+    if (isCardInBattle(id)) {
+      skippedBattle++;
+      return;
+    }
+    
+    const config = QUALITY_CONFIG[card.quality];
+    let sellPrice = config.sellPrice;
+    if (card.quality === 7 && card.mythLevel > 0) {
+      sellPrice = Math.floor(sellPrice * Math.pow(1.1, card.mythLevel));
+    }
+    totalPrice += sellPrice;
+    toSell.push(id);
   });
   
+  if (toSell.length === 0) {
+    let msg = '没有可出售的卡片';
+    if (skippedLocked > 0) msg += ` (${skippedLocked}张已锁定)`;
+    if (skippedBattle > 0) msg += ` (${skippedBattle}张出战中)`;
+    showToast(msg);
+    return;
+  }
+  
   gameState.gold += totalPrice;
-  gameState.cards = gameState.cards.filter(c => !selectedCardIds.includes(c.id));
+  gameState.cards = gameState.cards.filter(c => !toSell.includes(c.id));
   selectedCardIds = [];
   
-  showToast(`出售成功！获得 ${totalPrice} 金币`);
+  let msg = `出售成功！获得 ${formatGold(totalPrice)} 金币`;
+  if (skippedLocked > 0) msg += ` (${skippedLocked}张已锁定未出售)`;
+  if (skippedBattle > 0) msg += ` (${skippedBattle}张出战中未出售)`;
+  showToast(msg);
   saveGame();
   updateUI();
 }
@@ -387,13 +625,17 @@ function canSynthesize(quality) {
   
   if (quality === 7) {
     for (let level = 0; level < MYTH_MAX_LEVEL; level++) {
-      const count = gameState.cards.filter(c => c.quality === 7 && (c.mythLevel || 0) === level).length;
+      const count = gameState.cards.filter(c => 
+        c.quality === 7 && (c.mythLevel || 0) === level && !isCardInBattle(c.id)
+      ).length;
       if (count >= 2) return true;
     }
     return false;
   }
   
-  const count = gameState.cards.filter(c => c.quality === quality && (c.mythLevel || 0) === 0).length;
+  const count = gameState.cards.filter(c => 
+    c.quality === quality && (c.mythLevel || 0) === 0 && !isCardInBattle(c.id)
+  ).length;
   return count >= rule.count;
 }
 
@@ -486,9 +728,13 @@ function renderSynthesizeSelectGrid() {
       grid.innerHTML = '<div style="text-align:center;color:#aaa;padding:50px">请先选择合成等级</div>';
       return;
     }
-    filteredCards = gameState.cards.filter(c => c.quality === 7 && (c.mythLevel || 0) === synthesizeMythLevel);
+    filteredCards = gameState.cards.filter(c => 
+      c.quality === 7 && (c.mythLevel || 0) === synthesizeMythLevel && !isCardInBattle(c.id)
+    );
   } else {
-    filteredCards = gameState.cards.filter(c => c.quality === synthesizeQuality && (c.mythLevel || 0) === 0);
+    filteredCards = gameState.cards.filter(c => 
+      c.quality === synthesizeQuality && (c.mythLevel || 0) === 0 && !isCardInBattle(c.id)
+    );
   }
   
   if (filteredCards.length === 0) {
@@ -509,7 +755,7 @@ function renderSynthesizeSelectGrid() {
     el.innerHTML = `
       <div class="card-header">
         <div class="card-icon">${icon}</div>
-        <div class="card-name">${card.name}</div>
+        <div class="card-name">${card.name}${card.locked ? ' <span style="font-size:0.7em;">🔒</span>' : ''}</div>
         <div class="quality-badge">${config.name}${mythSuffix}</div>
       </div>
       <div class="card-stats">
@@ -518,7 +764,7 @@ function renderSynthesizeSelectGrid() {
         <div class="stat-row"><span>防御</span><span>${card.defense}</span></div>
         <div class="stat-row"><span>暴击</span><span>${(card.critRate * 100).toFixed(0)}%</span></div>
       </div>
-      ${card.hasUltimate ? '<div style="text-align:center;color:#ffd700;font-size:0.8em;margin-top:5px">必杀技 +500</div>' : ''}
+      ${card.hasUltimate ? '<div style="text-align:center;color:#ffd700;font-size:0.8em;margin-top:5px">必杀技 攻击×3</div>' : ''}
       <button class="card-btn ${isSelected ? 'sell' : 'select'}" onclick="toggleSynthesizeSelection('${card.id}')" style="margin-top:auto">${isSelected ? '取消选择' : '选择'}</button>
     `;
     
@@ -585,6 +831,9 @@ function confirmSynthesize() {
     }
     
     gameState.cards.splice(0, 0, resultCard);
+    if (!gameState.collectedCards.includes(resultCard.name)) {
+      gameState.collectedCards.push(resultCard.name);
+    }
     const levelText = targetLevel > 0 ? '+' + targetLevel : '';
     showToast(`神话合成成功！获得神话${levelText} ${resultCard.name}`);
     
@@ -601,7 +850,11 @@ function confirmSynthesize() {
   
   gameState.cards = gameState.cards.filter(c => !synthesizeSelectedIds.includes(c.id));
   
-  gameState.cards.splice(0, 0, createCard(rule.targetQuality));
+  const newCard = createCard(rule.targetQuality);
+  gameState.cards.splice(0, 0, newCard);
+  if (!gameState.collectedCards.includes(newCard.name)) {
+    gameState.collectedCards.push(newCard.name);
+  }
   showToast(`合成成功！获得 ${QUALITY_CONFIG[rule.targetQuality].name}`);
   
   closeSynthesizeModal();
@@ -621,7 +874,9 @@ function oneClickSynthesize(quality) {
   }
   
   const rule = SYNTHESIZE_RULES[quality];
-  const eligibleCards = gameState.cards.filter(c => c.quality === quality && (c.mythLevel || 0) === 0);
+  const eligibleCards = gameState.cards.filter(c => 
+    c.quality === quality && (c.mythLevel || 0) === 0 && !c.locked && !isCardInBattle(c.id)
+  );
   const totalCount = eligibleCards.length;
   const batchCount = Math.floor(totalCount / rule.count);
   
@@ -636,7 +891,11 @@ function oneClickSynthesize(quality) {
   
   // Create synthesized cards
   for (let i = 0; i < batchCount; i++) {
-    gameState.cards.splice(0, 0, createCard(rule.targetQuality));
+    const newCard = createCard(rule.targetQuality);
+    gameState.cards.splice(0, 0, newCard);
+    if (!gameState.collectedCards.includes(newCard.name)) {
+      gameState.collectedCards.push(newCard.name);
+    }
   }
   
   showToast(`一键合成完成！消耗${batchCount * rule.count}张，获得${batchCount}张 ${QUALITY_CONFIG[rule.targetQuality].name}`);
@@ -653,8 +912,10 @@ function oneClickMythSynthesize() {
   for (let level = 0; level < MYTH_MAX_LEVEL; level++) {
     let hasMore = true;
     while (hasMore) {
-      // Get all cards of this mythLevel
-      const levelCards = gameState.cards.filter(c => c.quality === 7 && (c.mythLevel || 0) === level);
+      // Get all cards of this mythLevel (exclude locked and battle)
+      const levelCards = gameState.cards.filter(c => 
+        c.quality === 7 && (c.mythLevel || 0) === level && !c.locked && !isCardInBattle(c.id)
+      );
       
       // Group by name
       const nameGroups = {};
@@ -670,7 +931,11 @@ function oneClickMythSynthesize() {
         if (cards.length >= 2) {
           const usedIds = cards.slice(0, 2).map(c => c.id);
           gameState.cards = gameState.cards.filter(c => !usedIds.includes(c.id));
-          gameState.cards.splice(0, 0, createCard(7, level + 1, name));
+          const newCard = createCard(7, level + 1, name);
+          gameState.cards.splice(0, 0, newCard);
+          if (!gameState.collectedCards.includes(newCard.name)) {
+            gameState.collectedCards.push(newCard.name);
+          }
           totalConsumed += 2;
           totalCreated++;
           pairFound = true;
@@ -684,11 +949,17 @@ function oneClickMythSynthesize() {
       }
       
       // Second: process different-name pairs
-      const remainingCards = gameState.cards.filter(c => c.quality === 7 && (c.mythLevel || 0) === level);
+      const remainingCards = gameState.cards.filter(c => 
+        c.quality === 7 && (c.mythLevel || 0) === level && !c.locked && !isCardInBattle(c.id)
+      );
       if (remainingCards.length >= 2) {
         const usedIds = remainingCards.slice(0, 2).map(c => c.id);
         gameState.cards = gameState.cards.filter(c => !usedIds.includes(c.id));
-        gameState.cards.splice(0, 0, createCard(7, level + 1));
+        const newCard = createCard(7, level + 1);
+        gameState.cards.splice(0, 0, newCard);
+        if (!gameState.collectedCards.includes(newCard.name)) {
+          gameState.collectedCards.push(newCard.name);
+        }
         totalConsumed += 2;
         totalCreated++;
         pairFound = true;
@@ -708,18 +979,38 @@ function oneClickMythSynthesize() {
   updateUI();
 }
 
+const LEVELS_PER_PAGE = 50;
+let currentLevelPage = 1;
+
 function renderLevelGrid() {
+  // Auto-navigate to page containing current level
+  currentLevelPage = Math.ceil(gameState.currentLevel / LEVELS_PER_PAGE);
+  renderLevelGridPage(currentLevelPage);
+}
+
+function getTotalLevelPages() {
+  return Math.ceil(Math.min(gameState.maxLevel + 1, LEVEL_CONFIG.totalLevels) / LEVELS_PER_PAGE);
+}
+
+function renderLevelGridPage(page) {
   const grid = document.getElementById('level-grid');
   grid.innerHTML = '';
   
-  for (let i = 1; i <= Math.min(gameState.maxLevel + 1, LEVEL_CONFIG.totalLevels); i++) {
+  const totalLevels = Math.min(gameState.maxLevel + 1, LEVEL_CONFIG.totalLevels);
+  const totalPages = getTotalLevelPages();
+  currentLevelPage = Math.max(1, Math.min(page, totalPages));
+  
+  const startLevel = (currentLevelPage - 1) * LEVELS_PER_PAGE + 1;
+  const endLevel = Math.min(currentLevelPage * LEVELS_PER_PAGE, totalLevels);
+  
+  for (let i = startLevel; i <= endLevel; i++) {
     const isUnlocked = gameState.unlockedLevels.includes(i);
     const isCurrent = i === gameState.currentLevel;
     const isBoss = i % LEVEL_CONFIG.bossInterval === 0;
     
     const btn = document.createElement('button');
     btn.className = `level-btn ${isUnlocked ? 'unlocked' : 'locked'} ${isCurrent ? 'current' : ''} ${isBoss ? 'boss' : ''}`;
-    btn.textContent = i;
+    btn.textContent = isBoss ? `${i}👑` : i;
     btn.disabled = !isUnlocked;
     
     if (isUnlocked) {
@@ -728,6 +1019,37 @@ function renderLevelGrid() {
     
     grid.appendChild(btn);
   }
+  
+  renderLevelPagination();
+}
+
+function renderLevelPagination() {
+  const totalPages = getTotalLevelPages();
+  const paginationHTML = buildPaginationHTML(currentLevelPage, totalPages);
+  
+  const topPagination = document.getElementById('level-pagination-top');
+  
+  if (topPagination) topPagination.innerHTML = totalPages > 1 ? paginationHTML : '';
+}
+
+function buildPaginationHTML(current, total) {
+  let html = '';
+  html += `<button class="page-btn" onclick="goToLevelPage(${current - 1})" ${current <= 1 ? 'disabled' : ''}>◀</button>`;
+  
+  for (let i = 1; i <= total; i++) {
+    if (i === current) {
+      html += `<button class="page-btn active">${i}</button>`;
+    } else {
+      html += `<button class="page-btn" onclick="goToLevelPage(${i})">${i}</button>`;
+    }
+  }
+  
+  html += `<button class="page-btn" onclick="goToLevelPage(${current + 1})" ${current >= total ? 'disabled' : ''}>▶</button>`;
+  return html;
+}
+
+function goToLevelPage(page) {
+  renderLevelGridPage(page);
 }
 
 function isQualitySetComplete(quality) {
@@ -780,6 +1102,12 @@ function startBattle(level) {
     return;
   }
   
+  if (gameState.cards.length >= MAX_INVENTORY_CARDS) {
+    showToast('背包已满！请先清理背包卡片，少于20000张后才能进行战斗');
+    switchTab('inventory');
+    return;
+  }
+  
   const isBoss = level % LEVEL_CONFIG.bossInterval === 0;
   
   const globalBonus = getGlobalBonus();
@@ -812,10 +1140,14 @@ function startBattle(level) {
   };
   
   document.getElementById('level-grid').style.display = 'none';
-  document.getElementById('battle-scene').style.display = 'block';
+  document.getElementById('battle-scene').style.display = 'flex';
+  document.querySelector('.level-selector').style.display = 'none';
   document.getElementById('battle-level').textContent = level;
   document.getElementById('battle-boss').textContent = isBoss ? 'BOSS关卡' : '';
   document.getElementById('battle-boss').style.display = isBoss ? 'inline' : 'none';
+  
+  // 进入全屏战斗模式
+  document.querySelector('.game-container').classList.add('in-battle');
   
   renderBattleCards();
   renderBattleLog();
@@ -907,7 +1239,7 @@ function createBattleCardElement(card, side, index) {
     <div class="card-hp-bar" style="margin-top:3px">
       <div class="card-hp-fill ${hpClass}" style="width:${hpPercent}%"></div>
     </div>
-    ${card.hasUltimate ? '<div class="battle-ultimate">必杀技</div>' : ''}
+    ${card.hasUltimate ? '<div class="battle-ultimate">必杀技 ×3</div>' : ''}
   `;
   
   return el;
@@ -999,7 +1331,7 @@ function calculateDamage(attacker, defender) {
   }
   
   if (attacker.hasUltimate && Math.random() < 0.3) {
-    baseDamage += attacker.ultimateDamage;
+    baseDamage *= (attacker.ultimateMultiplier || 3);
     isUltimate = true;
   }
   
@@ -1092,7 +1424,7 @@ function showBattleResult(isVictory) {
     gameState.gold += totalReward;
     
     const droppedCards = dropCards(level);
-    let rewardText = `获得 ${totalReward} 金币`;
+    let rewardText = `获得 ${formatGold(totalReward)} 金币`;
     
     if (droppedCards.length > 0) {
       rewardText += `<br>获得 ${droppedCards.length} 张卡片：`;
@@ -1132,9 +1464,8 @@ function showBattleResult(isVictory) {
   } else {
     icon.textContent = '💀';
     title.textContent = '战斗失败';
-    const failReward = Math.floor(totalReward * 0.2);
-    reward.textContent = `获得 ${failReward} 金币（20%）`;
-    gameState.gold += failReward;
+    reward.textContent = `获得 ${formatGold(totalReward)} 金币（20%）`;
+    gameState.gold += totalReward;
     
     document.getElementById('next-battle-btn').style.display = 'none';
     document.getElementById('retry-battle-btn').style.display = 'inline-block';
@@ -1276,6 +1607,8 @@ function closeBattleResult() {
   document.getElementById('battle-result').style.display = 'none';
   document.getElementById('battle-scene').style.display = 'none';
   document.getElementById('level-grid').style.display = 'grid';
+  document.querySelector('.level-selector').style.display = '';
+  document.querySelector('.game-container').classList.remove('in-battle');
   renderLevelGrid();
   gameState.battleState = null;
   selectedTarget = null;
@@ -1298,7 +1631,8 @@ function quickBattle() {
   function calcPower(cards) {
     return cards.reduce((sum, c) => {
       const effectiveAtk = c.attack * (1 + c.critRate * (c.critDamage - 1));
-      const power = effectiveAtk + c.hp * 0.3 + c.defense * 0.5 + (c.hasUltimate ? c.ultimateDamage * 0.3 : 0);
+      const ultimateBonus = c.hasUltimate ? c.attack * (c.ultimateMultiplier || 3) * 0.3 * 0.15 : 0;
+      const power = effectiveAtk + c.hp * 0.3 + c.defense * 0.5 + ultimateBonus;
       return sum + power;
     }, 0);
   }
@@ -1425,7 +1759,7 @@ function finishSweep() {
   
   let resultHTML = `<h3 style="color:#ffd700;">扫荡完成！(${sweepTotalCount}次)</h3>`;
   resultHTML += `<p>胜利: <span style="color:#44aa44;">${sweepWins}</span> | 失败: <span style="color:#ff4444;">${sweepLosses}</span></p>`;
-  resultHTML += `<p>获得金币: <span style="color:#ffd700;">${Math.floor(sweepTotalGold)}</span></p>`;
+  resultHTML += `<p>获得金币: <span style="color:#ffd700;">${formatGold(sweepTotalGold)}</span></p>`;
   
   if (sweepDroppedCards.length > 0) {
     resultHTML += `<p>掉落卡片: ${sweepDroppedCards.length}张</p>`;
@@ -1466,7 +1800,8 @@ function simulateBattle(level) {
   function calcPower(cards) {
     return cards.reduce((sum, c) => {
       const effectiveAtk = c.attack * (1 + c.critRate * (c.critDamage - 1));
-      return sum + effectiveAtk + c.hp * 0.3 + c.defense * 0.5 + (c.hasUltimate ? c.ultimateDamage * 0.3 : 0);
+      const ultimateBonus = c.hasUltimate ? c.attack * (c.ultimateMultiplier || 3) * 0.3 * 0.15 : 0;
+      return sum + effectiveAtk + c.hp * 0.3 + c.defense * 0.5 + ultimateBonus;
     }, 0);
   }
   
@@ -1539,7 +1874,7 @@ function renderCollection() {
       el.innerHTML = `
         <div class="card-header">
           <div class="card-icon">${isUnlocked ? icon : '❓'}</div>
-          <div class="card-name">${name}</div>
+          <div class="card-name">${isUnlocked ? name : '???'}</div>
           <div class="quality-badge">${config.name}</div>
         </div>
         ${isUnlocked ? `
@@ -1549,7 +1884,7 @@ function renderCollection() {
           <div class="stat-row"><span>防御</span><span>${stats.defense}</span></div>
           <div class="stat-row"><span>暴击</span><span>${(stats.critRate * 100).toFixed(0)}%</span></div>
         </div>
-        ${stats.hasUltimate ? '<div style="text-align:center;color:#ffd700;font-size:0.8em;margin-top:5px">必杀技 +500</div>' : ''}
+        ${stats.hasUltimate ? '<div style="text-align:center;color:#ffd700;font-size:0.8em;margin-top:5px">必杀技 攻击×3</div>' : ''}
         ` : '<div style="text-align:center;color:#666;font-size:0.9em;margin-top:20px">未解锁</div>'}
       `;
       grid.appendChild(el);
@@ -1664,6 +1999,14 @@ function selectForBattle() {
   
   gameState.battleCards = selectedCardIds.map(id => gameState.cards.find(c => c.id === id));
   switchTab('battle');
+}
+
+function cancelBattleCard(cardId) {
+  selectedCardIds = selectedCardIds.filter(id => id !== cardId);
+  if (gameState.battleCards) {
+    gameState.battleCards = gameState.battleCards.filter(c => c.id !== cardId);
+  }
+  renderInventory();
 }
 
 window.addEventListener('load', init);

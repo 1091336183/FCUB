@@ -37,7 +37,7 @@
         <span>抽卡</span>
       </button>
       <button class="tab-btn" data-tab="inventory">
-        <i class="fa fa-backpack"></i>
+        <i class="fa fa-suitcase"></i>
         <span>背包</span>
       </button>
       <button class="tab-btn" data-tab="synthesize">
@@ -45,7 +45,7 @@
         <span>合成</span>
       </button>
       <button class="tab-btn" data-tab="battle">
-        <i class="fa fa-swords"></i>
+        <i class="fa fa-crosshairs"></i>
         <span>战斗</span>
       </button>
       <button class="tab-btn" data-tab="collection">
@@ -86,7 +86,7 @@
               <i class="fa fa-gift"></i> 去抽卡
             </button>
             <button class="action-btn secondary" onclick="switchTab('battle')">
-              <i class="fa fa-swords"></i> 去战斗
+              <i class="fa fa-crosshairs"></i> 去战斗
             </button>
             <button class="action-btn secondary" onclick="switchTab('synthesize')">
               <i class="fa fa-flask"></i> 去合成
@@ -127,7 +127,7 @@
       <section id="inventory" class="tab-content">
         <h2>卡片背包</h2>
         <div class="inventory-wrapper">
-          <div class="inventory-scroll-area">
+          <div class="inventory-top-fixed">
             <div class="inventory-filter">
               <button class="filter-btn active" data-filter="all" onclick="filterCards('all')">全部</button>
               <button class="filter-btn" data-filter="1" onclick="filterCards(1)">普通</button>
@@ -138,14 +138,17 @@
               <button class="filter-btn" data-filter="6" onclick="filterCards(6)">传奇</button>
               <button class="filter-btn" data-filter="7" onclick="filterCards(7)">神话</button>
             </div>
+            <div class="inventory-pagination" id="inventory-pagination"></div>
+          </div>
+          <div class="inventory-scroll-area">
             <div class="inventory-grid" id="inventory-grid"></div>
           </div>
           <div class="inventory-actions-fixed">
-            <button class="action-btn primary" onclick="sellSelectedCards()">
-              <i class="fa fa-trash"></i> 出售选中
+            <button class="action-btn primary" onclick="openBulkSellModal()">
+              <i class="fa fa-trash"></i> 批量出售
             </button>
             <button class="action-btn primary" onclick="selectForBattle()">
-              <i class="fa fa-swords"></i> 去挑战
+              <i class="fa fa-crosshairs"></i> 去战斗
             </button>
           </div>
         </div>
@@ -263,6 +266,7 @@
         <div class="battle-area">
           <div class="level-selector">
             <h3>选择关卡</h3>
+            <div class="level-pagination" id="level-pagination-top"></div>
             <div class="level-grid" id="level-grid"></div>
             <div class="sweep-area">
               <button class="action-btn sweep-btn" onclick="openSweepModal()">
@@ -346,6 +350,34 @@
       <div class="modal-content">
         <span class="close-btn" onclick="closeCardModal()">&times;</span>
         <div class="card-detail" id="card-detail"></div>
+      </div>
+    </div>
+
+    <div id="bulk-sell-modal" class="modal" style="display:none">
+      <div class="modal-content" style="max-width: 700px; width: 95%; max-height:85vh;">
+        <span class="close-btn" onclick="closeBulkSellModal()">&times;</span>
+        <h3>批量出售</h3>
+        <p style="margin:5px 0;color:#aaa;font-size:0.85em;">锁定和出战卡片不会显示在出售列表中</p>
+        <div class="bulk-sell-filter" id="bulk-sell-filter">
+          <button class="filter-btn active" data-filter="all" onclick="filterBulkSell('all')">全部</button>
+          <button class="filter-btn" data-filter="1" onclick="filterBulkSell(1)">普通</button>
+          <button class="filter-btn" data-filter="2" onclick="filterBulkSell(2)">精良</button>
+          <button class="filter-btn" data-filter="3" onclick="filterBulkSell(3)">优秀</button>
+          <button class="filter-btn" data-filter="4" onclick="filterBulkSell(4)">杰出</button>
+          <button class="filter-btn" data-filter="5" onclick="filterBulkSell(5)">史诗</button>
+          <button class="filter-btn" data-filter="6" onclick="filterBulkSell(6)">传奇</button>
+          <button class="filter-btn" data-filter="7" onclick="filterBulkSell(7)">神话</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin:10px 0;">
+          <button class="page-btn" onclick="toggleBulkSelectAll()" id="bulk-select-all-btn">全选</button>
+          <span id="bulk-sell-count" style="color:#aaa;">已选: 0张</span>
+        </div>
+        <div class="bulk-sell-grid" id="bulk-sell-grid"></div>
+        <div style="text-align:center;margin-top:15px;">
+          <button class="action-btn primary" onclick="confirmBulkSell()" style="min-width:150px;">
+            <i class="fa fa-trash"></i> 确认出售
+          </button>
+        </div>
       </div>
     </div>
 

@@ -124,7 +124,7 @@ function calculateStats(base, quality, cardIndex, mythLevel = 0) {
     critRate: variation.critRate,
     critDamage: base.critDamage,
     hasUltimate: config.hasUltimate,
-    ultimateDamage: config.hasUltimate ? 500 : 0
+    ultimateMultiplier: config.hasUltimate ? 3 : 1
   };
 }
 
@@ -138,6 +138,7 @@ function createCard(quality, mythLevel = 0, name = null) {
     name: cardName,
     quality: quality,
     mythLevel: mythLevel,
+    locked: false,
     ...stats
   };
 }
