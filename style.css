@@ -673,8 +673,7 @@ body {
   display: flex;
   gap: 10px;
   padding: 10px 15px;
-  background: rgba(10, 15, 30, 0.95);
-  backdrop-filter: blur(10px);
+  background: transparent;
   border-top: 1px solid rgba(255, 215, 0, 0.2);
   z-index: 10;
 }
@@ -1223,10 +1222,26 @@ body {
 
 .collection-filter {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 10px;
   margin-bottom: 20px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 5px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.collection-filter::-webkit-scrollbar {
+  height: 4px;
+}
+
+.collection-filter::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+}
+
+.collection-filter::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .collection-filter .filter-btn {
@@ -1237,6 +1252,8 @@ body {
   color: #fff;
   cursor: pointer;
   transition: all 0.3s;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .collection-filter .filter-btn:hover {

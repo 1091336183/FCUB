@@ -7,6 +7,7 @@ let gameState = {
   selectedCards: [],
   battleCards: [],
   collectedCards: [],
+  collectedCardsByLevel: {},
   battleState: null
 };
 
@@ -58,6 +59,10 @@ function loadGame() {
         .map(c => c ? c.id : null)
         .filter(id => id !== null);
     }
+    // 旧数据迁移：collectedCardsByLevel
+    if (!gameState.collectedCardsByLevel) {
+      gameState.collectedCardsByLevel = {};
+    }
   } else {
     initializeNewGame();
   }
@@ -72,7 +77,8 @@ function initializeNewGame() {
     unlockedLevels: [1],
     selectedCards: [],
     battleCards: [],
-    collectedCards: []
+    collectedCards: [],
+    collectedCardsByLevel: {}
   };
   saveGame();
 }
@@ -177,6 +183,7 @@ function performGacha(type) {
       if (!gameState.collectedCards.includes(card.name)) {
         gameState.collectedCards.push(card.name);
       }
+      trackMythCard(card);
     }
     
     showGachaResultSummary(type, qualityCount, config.count);
@@ -190,6 +197,7 @@ function performGacha(type) {
       if (!gameState.collectedCards.includes(card.name)) {
         gameState.collectedCards.push(card.name);
       }
+      trackMythCard(card);
     }
     
     showGachaResult(results);
@@ -386,6 +394,10 @@ function filterCards(filter) {
 }
 
 function toggleCardSelection(cardId) {
+  if (gameState.battleState) {
+    showToast('战斗中不能调整出战卡片，请先完成战斗！');
+    return;
+  }
   const card = gameState.cards.find(c => c.id === cardId);
   if (!card) return;
   
@@ -748,6 +760,8 @@ function renderSynthesizeSelectGrid() {
     const el = document.createElement('div');
     el.className = `card card-${card.quality} ${isSelected ? 'selected' : ''}`;
     el.dataset.id = card.id;
+    el.onclick = () => toggleSynthesizeSelection(card.id);
+    el.style.cursor = 'pointer';
     
     const mythSuffix = card.quality === 7 && (card.mythLevel || 0) > 0 ? '+' + card.mythLevel : '';
     const icon = getCardIcon(card);
@@ -765,7 +779,7 @@ function renderSynthesizeSelectGrid() {
         <div class="stat-row"><span>暴击</span><span>${(card.critRate * 100).toFixed(0)}%</span></div>
       </div>
       ${card.hasUltimate ? '<div style="text-align:center;color:#ffd700;font-size:0.8em;margin-top:5px">必杀技 攻击×3</div>' : ''}
-      <button class="card-btn ${isSelected ? 'sell' : 'select'}" onclick="toggleSynthesizeSelection('${card.id}')" style="margin-top:auto">${isSelected ? '取消选择' : '选择'}</button>
+      ${isSelected ? '<div style="text-align:center;color:#ffd700;font-size:0.85em;margin-top:auto;padding:5px;">✓ 已选中</div>' : '<div style="text-align:center;color:#666;font-size:0.8em;margin-top:auto;padding:5px;">点击选择</div>'}
     `;
     
     grid.appendChild(el);
@@ -834,6 +848,7 @@ function confirmSynthesize() {
     if (!gameState.collectedCards.includes(resultCard.name)) {
       gameState.collectedCards.push(resultCard.name);
     }
+    trackMythCard(resultCard);
     const levelText = targetLevel > 0 ? '+' + targetLevel : '';
     showToast(`神话合成成功！获得神话${levelText} ${resultCard.name}`);
     
@@ -855,6 +870,7 @@ function confirmSynthesize() {
   if (!gameState.collectedCards.includes(newCard.name)) {
     gameState.collectedCards.push(newCard.name);
   }
+  trackMythCard(newCard);
   showToast(`合成成功！获得 ${QUALITY_CONFIG[rule.targetQuality].name}`);
   
   closeSynthesizeModal();
@@ -896,6 +912,7 @@ function oneClickSynthesize(quality) {
     if (!gameState.collectedCards.includes(newCard.name)) {
       gameState.collectedCards.push(newCard.name);
     }
+    trackMythCard(newCard);
   }
   
   showToast(`一键合成完成！消耗${batchCount * rule.count}张，获得${batchCount}张 ${QUALITY_CONFIG[rule.targetQuality].name}`);
@@ -936,6 +953,7 @@ function oneClickMythSynthesize() {
           if (!gameState.collectedCards.includes(newCard.name)) {
             gameState.collectedCards.push(newCard.name);
           }
+          trackMythCard(newCard);
           totalConsumed += 2;
           totalCreated++;
           pairFound = true;
@@ -960,6 +978,7 @@ function oneClickMythSynthesize() {
         if (!gameState.collectedCards.includes(newCard.name)) {
           gameState.collectedCards.push(newCard.name);
         }
+        trackMythCard(newCard);
         totalConsumed += 2;
         totalCreated++;
         pairFound = true;
@@ -1064,6 +1083,34 @@ function getCollectionCountForQuality(quality) {
   return names.filter(name => gameState.collectedCards.includes(name)).length;
 }
 
+function isMythLevelSetComplete(mythLevel) {
+  if (!mythLevel || mythLevel <= 0) return false;
+  const names = CARD_NAMES[7];
+  if (!names) return false;
+  const lvlData = gameState.collectedCardsByLevel[mythLevel];
+  if (!lvlData) return false;
+  return names.every(name => lvlData.includes(name));
+}
+
+function getMythLevelCollectionCount(mythLevel) {
+  if (!mythLevel || mythLevel <= 0) return 0;
+  const names = CARD_NAMES[7];
+  if (!names) return 0;
+  const lvlData = gameState.collectedCardsByLevel[mythLevel];
+  if (!lvlData) return 0;
+  return names.filter(name => lvlData.includes(name)).length;
+}
+
+function trackMythCard(card) {
+  if (card.quality !== 7 || !card.mythLevel || card.mythLevel <= 0) return;
+  if (!gameState.collectedCardsByLevel[card.mythLevel]) {
+    gameState.collectedCardsByLevel[card.mythLevel] = [];
+  }
+  if (!gameState.collectedCardsByLevel[card.mythLevel].includes(card.name)) {
+    gameState.collectedCardsByLevel[card.mythLevel].push(card.name);
+  }
+}
+
 function getGlobalBonus() {
   let total = 0;
   for (let q = 1; q <= 6; q++) {
@@ -1071,17 +1118,22 @@ function getGlobalBonus() {
       total += COLLECTION_BONUS[q];
     }
   }
+  // 神话等级加成（每个神话等级集齐8张后生效）
+  for (let lvl = 1; lvl <= 10; lvl++) {
+    if (isMythLevelSetComplete(lvl)) {
+      total += lvl * COLLECTION_BONUS[7].perLevel;
+    }
+  }
   return total;
 }
 
 function getCollectionBonus(quality, mythLevel = 0) {
-  if (!isQualitySetComplete(quality)) return 0;
-
-  const bonusConfig = COLLECTION_BONUS[quality];
   if (quality === 7) {
-    return bonusConfig.base + mythLevel * bonusConfig.perLevel;
+    if (!isMythLevelSetComplete(mythLevel)) return 0;
+    return mythLevel * COLLECTION_BONUS[7].perLevel;
   }
-  return bonusConfig;
+  if (!isQualitySetComplete(quality)) return 0;
+  return COLLECTION_BONUS[quality];
 }
 
 function getCollectionBonusPercent(quality, mythLevel = 0) {
@@ -1114,10 +1166,6 @@ function startBattle(level) {
 
   const playerCards = gameState.battleCards.map(card => {
     let bonus = globalBonus;
-    // 神话卡片额外叠加神话等级加成
-    if (card.quality === 7) {
-      bonus += getCollectionBonus(7, card.mythLevel || 0);
-    }
     if (bonus > 0) {
       return {
         ...card,
@@ -1223,12 +1271,13 @@ function createBattleCardElement(card, side, index) {
   
   const icon = getCardIcon(card);
   const abbr = abbreviateNumber;
+  const mythSuffix = card.quality === 7 && card.mythLevel > 0 ? '+' + card.mythLevel : '';
   
   el.innerHTML = `
     <div class="card-header">
       <div class="card-icon">${icon}</div>
       <div class="card-name">${card.name}</div>
-      <div class="quality-badge">${config.name}</div>
+      <div class="quality-badge">${config.name}${mythSuffix}</div>
     </div>
     <div class="card-stats">
       <div class="stat-row"><span>攻击</span><span>${abbr(card.attack)}</span></div>
@@ -1783,9 +1832,6 @@ function simulateBattle(level) {
   
   const playerCards = gameState.battleCards.map(card => {
     let bonus = globalBonus;
-    if (card.quality === 7) {
-      bonus += getCollectionBonus(7, card.mythLevel || 0);
-    }
     if (bonus > 0) {
       return {
         ...card,
@@ -1843,6 +1889,15 @@ function renderCollection() {
   const grid = document.getElementById('collection-grid');
   grid.innerHTML = '';
   
+  // 检查是否是神话等级过滤
+  if (typeof currentFilter === 'string' && currentFilter.startsWith('myth')) {
+    const mythLevel = parseInt(currentFilter.replace('myth', ''));
+    if (mythLevel >= 1 && mythLevel <= 10) {
+      renderMythLevelCollection(mythLevel);
+      return;
+    }
+  }
+  
   let filteredQualities = [1, 2, 3, 4, 5, 6, 7];
   if (currentFilter !== 'all') {
     filteredQualities = [parseInt(currentFilter)];
@@ -1854,7 +1909,7 @@ function renderCollection() {
     const totalCount = CARD_NAMES[quality].length;
     const isComplete = isQualitySetComplete(quality);
 
-    // 添加品质分组标题
+    // 品质分组标题
     const header = document.createElement('div');
     header.className = 'collection-quality-header';
     header.style.cssText = `grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-top: 8px;`;
@@ -1894,10 +1949,71 @@ function renderCollection() {
     });
   });
   
-  document.getElementById('collection-count').textContent = gameState.collectedCards.length;
-  document.getElementById('collection-total').textContent = Object.values(CARD_NAMES).reduce((sum, names) => sum + names.length, 0);
+  // 计算总收集数（包括神话等级收集）
+  let totalCollected = gameState.collectedCards.length;
+  for (let lvl = 1; lvl <= 10; lvl++) {
+    totalCollected += getMythLevelCollectionCount(lvl);
+  }
+  document.getElementById('collection-count').textContent = totalCollected;
+  document.getElementById('collection-total').textContent = 56 + 80; // 基础56 + 神话等级80
 
-  // 渲染套装加成汇总
+  renderCollectionBonusSummary();
+}
+
+function renderMythLevelCollection(mythLevel) {
+  const grid = document.getElementById('collection-grid');
+  const config = QUALITY_CONFIG[7];
+  const names = CARD_NAMES[7];
+  const lvlData = gameState.collectedCardsByLevel[mythLevel] || [];
+  const collectedCount = getMythLevelCollectionCount(mythLevel);
+  const totalCount = names.length;
+  const isComplete = isMythLevelSetComplete(mythLevel);
+  
+  const header = document.createElement('div');
+  header.className = 'collection-quality-header';
+  header.style.cssText = `grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-top: 8px;`;
+  header.innerHTML = `
+    <span class="quality-badge" style="background:${config.color}; font-size:0.8em;">神话+${mythLevel}</span>
+    <span style="color:#aaa; font-size:0.8em;">${collectedCount}/${totalCount}</span>
+    ${isComplete ? '<span style="color:#ffd700; font-size:0.8em;">加成: +' + (mythLevel * 50) + '%</span>' : ''}
+  `;
+  grid.appendChild(header);
+  
+  names.forEach(name => {
+    const isUnlocked = lvlData.includes(name);
+    const cardIndex = getCardIndex(7, name);
+    const stats = calculateStats(BASE_STATS, 7, cardIndex, mythLevel);
+    const icon = getCardIcon({ quality: 7, name });
+    
+    const el = document.createElement('div');
+    el.className = `card card-7 ${isUnlocked ? '' : 'locked'}`;
+    
+    el.innerHTML = `
+      <div class="card-header">
+        <div class="card-icon">${isUnlocked ? icon : '❓'}</div>
+        <div class="card-name">${isUnlocked ? name : '???'}</div>
+        <div class="quality-badge">神话+${mythLevel}</div>
+      </div>
+      ${isUnlocked ? `
+      <div class="card-stats">
+        <div class="stat-row"><span>攻击</span><span>${stats.attack}</span></div>
+        <div class="stat-row"><span>生命</span><span>${stats.hp}</span></div>
+        <div class="stat-row"><span>防御</span><span>${stats.defense}</span></div>
+        <div class="stat-row"><span>暴击</span><span>${(stats.critRate * 100).toFixed(0)}%</span></div>
+      </div>
+      <div style="text-align:center;color:#ffd700;font-size:0.8em;margin-top:5px">必杀技 攻击×3</div>
+      ` : '<div style="text-align:center;color:#666;font-size:0.9em;margin-top:20px">未解锁</div>'}
+    `;
+    grid.appendChild(el);
+  });
+  
+  let totalCollected = gameState.collectedCards.length;
+  for (let lvl = 1; lvl <= 10; lvl++) {
+    totalCollected += getMythLevelCollectionCount(lvl);
+  }
+  document.getElementById('collection-count').textContent = totalCollected;
+  document.getElementById('collection-total').textContent = 136;
+  
   renderCollectionBonusSummary();
 }
 
@@ -1931,25 +2047,26 @@ function renderCollectionBonusSummary() {
       </div>`;
       if (isComplete) hasBonus = true;
     } else {
-      // 神话基础行
-      const base = Math.round(COLLECTION_BONUS[7].base * 100);
+      // 神话基础收集行
       html += `<div class="bonus-item ${isComplete ? 'complete' : ''}">
         <span class="bonus-quality" style="color:${config.color}">神话</span>
         <span class="bonus-progress">${collected}/${total}</span>
-        <span class="bonus-value">${isComplete ? '神话 +' + base + '%' : '未集齐'}</span>
+        <span class="bonus-value">${isComplete ? '已集齐' : '未集齐'}</span>
       </div>`;
       if (isComplete) hasBonus = true;
 
       // 神话+1 ~ 神话+10 收集任务
-      html += '<div class="bonus-divider">── 神话等级加成任务 ──</div>';
+      html += '<div class="bonus-divider">── 神话等级收集加成（每级集齐8张后生效） ──</div>';
       for (let lvl = 1; lvl <= 10; lvl++) {
-        const lvlBonus = Math.round((COLLECTION_BONUS[7].base + lvl * COLLECTION_BONUS[7].perLevel) * 100);
-        const mythLvlItem = isComplete ? 'complete' : '';
-        html += `<div class="bonus-item ${mythLvlItem}">
+        const lvlCollected = getMythLevelCollectionCount(lvl);
+        const lvlComplete = isMythLevelSetComplete(lvl);
+        const lvlBonus = lvl * 50; // 每级+50%
+        html += `<div class="bonus-item ${lvlComplete ? 'complete' : ''}">
           <span class="bonus-quality" style="color:${config.color}">神话+${lvl}</span>
-          <span class="bonus-progress">${isComplete ? '8/8' : collected + '/' + total}</span>
-          <span class="bonus-value">${isComplete ? '+' + lvlBonus + '%' : '需集齐神话8张'}</span>
+          <span class="bonus-progress">${lvlCollected}/${total}</span>
+          <span class="bonus-value">${lvlComplete ? '+' + lvlBonus + '%' : '需集齐8张'}</span>
         </div>`;
+        if (lvlComplete) hasBonus = true;
       }
     }
   }
@@ -1961,7 +2078,7 @@ function renderCollectionBonusSummary() {
   } else {
     const globalTotal = Math.round(getGlobalBonus() * 100);
     if (globalTotal > 0) {
-      html += `<p class="set-complete-banner" style="margin-top:12px;">当前全局增益累计：全部上阵卡牌攻击/生命/防御 <strong>+${globalTotal}%</strong></p>`;
+      html += `<p class="set-complete-banner" style="margin-top:12px;">当前全局增益累计（含神话等级）：全部上阵卡牌攻击/生命/防御 <strong>+${globalTotal}%</strong></p>`;
     }
   }
 
@@ -1995,6 +2112,10 @@ function closeCardModal() {
 }
 
 function selectForBattle() {
+  if (gameState.battleState) {
+    showToast('战斗中不能调整出战卡片，请先完成战斗！');
+    return;
+  }
   if (selectedCardIds.length !== 3) {
     showToast('请选择3张卡片进行战斗！');
     return;
@@ -2005,6 +2126,10 @@ function selectForBattle() {
 }
 
 function cancelBattleCard(cardId) {
+  if (gameState.battleState) {
+    showToast('战斗中不能取消出战卡片，请先完成战斗！');
+    return;
+  }
   selectedCardIds = selectedCardIds.filter(id => id !== cardId);
   if (gameState.battleCards) {
     gameState.battleCards = gameState.battleCards.filter(c => c.id !== cardId);

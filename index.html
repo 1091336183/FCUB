@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="description" content="幻卡纪元-终极合成战：卡片合成 | 策略对决 | 百连抽卡 | 神话进化 | 挂机扫荡 | 图鉴收集 | 必杀暴击 | 极限养成 | 巅峰决战 | 无尽征程">
+  <meta name="keywords" content="卡片合成,策略对决,百连抽卡,神话进化,挂机扫荡,图鉴收集,必杀暴击,极限养成,巅峰决战,无尽征程">
   <title>幻卡纪元-终极合成战</title>
   <link rel="stylesheet" href="style.css">
   <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
@@ -112,11 +114,11 @@
               <div class="btn-label">神话抽卡</div>
             </button>
             <button class="gacha-btn myth100" onclick="performGacha('myth100')">
-              <div class="btn-price">30万 金币</div>
+              <div class="btn-price">270万 金币</div>
               <div class="btn-label">神话100连抽</div>
             </button>
             <button class="gacha-btn myth1000" onclick="performGacha('myth1000')">
-              <div class="btn-price">250万 金币</div>
+              <div class="btn-price">2500万 金币</div>
               <div class="btn-label">神话1000连抽</div>
             </button>
           </div>
@@ -334,10 +336,20 @@
             <button class="filter-btn" data-filter="5" onclick="filterCollection(5)">史诗</button>
             <button class="filter-btn" data-filter="6" onclick="filterCollection(6)">传奇</button>
             <button class="filter-btn" data-filter="7" onclick="filterCollection(7)">神话</button>
+            <button class="filter-btn myth-lvl" data-filter="myth1" onclick="filterCollection('myth1')">神话+1</button>
+            <button class="filter-btn myth-lvl" data-filter="myth2" onclick="filterCollection('myth2')">神话+2</button>
+            <button class="filter-btn myth-lvl" data-filter="myth3" onclick="filterCollection('myth3')">神话+3</button>
+            <button class="filter-btn myth-lvl" data-filter="myth4" onclick="filterCollection('myth4')">神话+4</button>
+            <button class="filter-btn myth-lvl" data-filter="myth5" onclick="filterCollection('myth5')">神话+5</button>
+            <button class="filter-btn myth-lvl" data-filter="myth6" onclick="filterCollection('myth6')">神话+6</button>
+            <button class="filter-btn myth-lvl" data-filter="myth7" onclick="filterCollection('myth7')">神话+7</button>
+            <button class="filter-btn myth-lvl" data-filter="myth8" onclick="filterCollection('myth8')">神话+8</button>
+            <button class="filter-btn myth-lvl" data-filter="myth9" onclick="filterCollection('myth9')">神话+9</button>
+            <button class="filter-btn myth-lvl" data-filter="myth10" onclick="filterCollection('myth10')">神话+10</button>
           </div>
           <div class="collection-grid" id="collection-grid"></div>
           <div class="collection-progress">
-            <span>已收集: <span id="collection-count">0</span> / <span id="collection-total">56</span></span>
+            <span>已收集: <span id="collection-count">0</span> / <span id="collection-total">136</span></span>
           </div>
         </div>
         <div id="collection-bonuses-tab" style="display:none;">

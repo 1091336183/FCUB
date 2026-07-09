@@ -52,17 +52,17 @@ const GACHA_CONFIG = {
   myth: {
     price: 30000,
     count: 8,
-    probabilities: { 3: 0.2, 4: 0.3, 5: 0.25, 6: 0.15, 7: 0.1 }
+    probabilities: { 3: 0.30, 4: 0.40, 5: 0.20, 6: 0.07, 7: 0.03 }
   },
   myth100: {
-    price: 300000,
-    count: 100,
-    probabilities: { 3: 0.2, 4: 0.3, 5: 0.25, 6: 0.15, 7: 0.1 }
+    price: 2700000,
+    count: 800,
+    probabilities: { 3: 0.25, 4: 0.35, 5: 0.25, 6: 0.10, 7: 0.05 }
   },
   myth1000: {
-    price: 2500000,
-    count: 1000,
-    probabilities: { 3: 0.2, 4: 0.3, 5: 0.25, 6: 0.15, 7: 0.1 }
+    price: 25000000,
+    count: 8000,
+    probabilities: { 3: 0.15, 4: 0.25, 5: 0.30, 6: 0.20, 7: 0.10 }
   }
 };
 
@@ -83,7 +83,7 @@ const COLLECTION_BONUS = {
   4: 0.60,
   5: 0.80,
   6: 1.00,
-  7: { base: 2.00, perLevel: 0.30 }
+  7: { perLevel: 0.50 }
 };
 
 function generateCardId() {
