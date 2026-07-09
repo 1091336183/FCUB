@@ -157,9 +157,9 @@ function performGacha(type) {
     return;
   }
   
-  const isOverflow = gameState.cards.length >= MAX_INVENTORY_CARDS;
-  if (isOverflow) {
-    showToast('背包已满！临时存放可以超过20000张，请及时清理背包卡片');
+  if (gameState.cards.length >= MAX_INVENTORY_CARDS) {
+    showToast('背包已满！请先清理背包卡片后再进行抽卡');
+    return;
   }
   
   gameState.gold -= config.price;
@@ -1118,6 +1118,10 @@ function getGlobalBonus() {
       total += COLLECTION_BONUS[q];
     }
   }
+  // 神话套装集齐：+200%
+  if (isQualitySetComplete(7)) {
+    total += 2.00;
+  }
   // 神话等级加成（每个神话等级集齐8张后生效）
   for (let lvl = 1; lvl <= 10; lvl++) {
     if (isMythLevelSetComplete(lvl)) {
@@ -2051,7 +2055,7 @@ function renderCollectionBonusSummary() {
       html += `<div class="bonus-item ${isComplete ? 'complete' : ''}">
         <span class="bonus-quality" style="color:${config.color}">神话</span>
         <span class="bonus-progress">${collected}/${total}</span>
-        <span class="bonus-value">${isComplete ? '已集齐' : '未集齐'}</span>
+        <span class="bonus-value">${isComplete ? '+200%' : '未集齐'}</span>
       </div>`;
       if (isComplete) hasBonus = true;
 
