@@ -139,6 +139,16 @@
               <button class="filter-btn" data-filter="5" onclick="filterCards(5)">史诗</button>
               <button class="filter-btn" data-filter="6" onclick="filterCards(6)">传奇</button>
               <button class="filter-btn" data-filter="7" onclick="filterCards(7)">神话</button>
+              <button class="filter-btn myth-lvl" data-filter="myth1" onclick="filterCards('myth1')">神话+1</button>
+              <button class="filter-btn myth-lvl" data-filter="myth2" onclick="filterCards('myth2')">神话+2</button>
+              <button class="filter-btn myth-lvl" data-filter="myth3" onclick="filterCards('myth3')">神话+3</button>
+              <button class="filter-btn myth-lvl" data-filter="myth4" onclick="filterCards('myth4')">神话+4</button>
+              <button class="filter-btn myth-lvl" data-filter="myth5" onclick="filterCards('myth5')">神话+5</button>
+              <button class="filter-btn myth-lvl" data-filter="myth6" onclick="filterCards('myth6')">神话+6</button>
+              <button class="filter-btn myth-lvl" data-filter="myth7" onclick="filterCards('myth7')">神话+7</button>
+              <button class="filter-btn myth-lvl" data-filter="myth8" onclick="filterCards('myth8')">神话+8</button>
+              <button class="filter-btn myth-lvl" data-filter="myth9" onclick="filterCards('myth9')">神话+9</button>
+              <button class="filter-btn myth-lvl" data-filter="myth10" onclick="filterCards('myth10')">神话+10</button>
             </div>
             <div class="inventory-pagination" id="inventory-pagination"></div>
           </div>
@@ -270,6 +280,11 @@
             <h3>选择关卡</h3>
             <div class="level-pagination" id="level-pagination-top"></div>
             <div class="level-grid" id="level-grid"></div>
+            <div class="level-battle-row">
+              <button class="action-btn battle-btn" id="enter-battle-btn" onclick="enterSelectedBattle()" disabled>
+                <i class="fa fa-crosshairs"></i> 进入战斗
+              </button>
+            </div>
             <div class="sweep-area">
               <button class="action-btn sweep-btn" onclick="openSweepModal()">
                 <i class="fa fa-bolt"></i> 扫荡

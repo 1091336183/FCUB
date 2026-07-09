@@ -600,10 +600,31 @@ body {
 
 .inventory-filter {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 10px;
   margin-bottom: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 5px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.inventory-filter::-webkit-scrollbar {
+  height: 4px;
+}
+
+.inventory-filter::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+}
+
+.inventory-filter::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.inventory-filter .filter-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .filter-btn {
@@ -675,7 +696,7 @@ body {
   padding: 10px 15px;
   background: transparent;
   border-top: 1px solid rgba(255, 215, 0, 0.2);
-  z-index: 10;
+  z-index: 100;
 }
 
 .inventory-actions-fixed .action-btn {
@@ -859,6 +880,13 @@ body {
 .level-btn.current {
   background: #ffd700;
   color: #000;
+}
+
+.level-btn.selected {
+  background: #00cc66;
+  color: #fff;
+  transform: scale(1.08);
+  box-shadow: 0 0 12px rgba(0, 204, 102, 0.6);
 }
 
 .level-btn.boss {
@@ -1127,6 +1155,24 @@ body {
 .sweep-area {
   text-align: center;
   margin-top: 15px;
+}
+
+.level-battle-row {
+  text-align: right;
+  margin-top: 15px;
+}
+
+.level-battle-row .battle-btn {
+  background: linear-gradient(135deg, #ff4444, #cc0000) !important;
+  color: #fff !important;
+  font-weight: bold;
+  font-size: 1.1em;
+  min-width: 140px;
+}
+
+.level-battle-row .battle-btn:disabled {
+  background: #555 !important;
+  cursor: not-allowed;
 }
 
 .sweep-btn {

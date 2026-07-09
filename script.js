@@ -13,6 +13,7 @@ let gameState = {
 
 let currentFilter = 'all';
 let selectedCardIds = [];
+let selectedBattleLevel = null;
 let synthesizeQuality = null;
 let synthesizeSelectedIds = [];
 let synthesizeMythLevel = null;
@@ -112,9 +113,12 @@ function switchTab(tabId) {
   } else if (tabId === 'synthesize') {
     renderSynthesizeButtons();
   } else if (tabId === 'battle') {
+    selectedBattleLevel = null;
     renderLevelGrid();
   } else if (tabId === 'collection') {
     renderCollection();
+  } else if (tabId === 'gacha') {
+    document.getElementById('gacha-result').innerHTML = '';
   }
 }
 
@@ -321,13 +325,23 @@ function renderInventory() {
   
   let filteredCards = gameState.cards;
   if (currentFilter !== 'all') {
-    filteredCards = gameState.cards.filter(c => c.quality === parseInt(currentFilter));
+    if (typeof currentFilter === 'string' && currentFilter.startsWith('myth')) {
+      const mythLevel = parseInt(currentFilter.replace('myth', ''));
+      filteredCards = gameState.cards.filter(c => c.quality === 7 && c.mythLevel === mythLevel);
+    } else {
+      filteredCards = gameState.cards.filter(c => c.quality === parseInt(currentFilter));
+    }
   }
   
+  // 已出战卡片排最前面
   filteredCards.sort((a, b) => {
-    if (b.quality !== a.quality) {
-      return b.quality - a.quality;
-    }
+    // 出战卡片优先
+    const aInBattle = selectedCardIds.includes(a.id) || (gameState.battleCards && gameState.battleCards.some(bc => bc && bc.id === a.id));
+    const bInBattle = selectedCardIds.includes(b.id) || (gameState.battleCards && gameState.battleCards.some(bc => bc && bc.id === b.id));
+    if (aInBattle && !bInBattle) return -1;
+    if (!aInBattle && bInBattle) return 1;
+    // 按品质和攻击力排序
+    if (b.quality !== a.quality) return b.quality - a.quality;
     return b.attack - a.attack;
   });
   
@@ -1033,7 +1047,13 @@ function renderLevelGridPage(page) {
     btn.disabled = !isUnlocked;
     
     if (isUnlocked) {
-      btn.onclick = () => startBattle(i);
+      btn.onclick = () => {
+        selectedBattleLevel = i;
+        document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        const enterBtn = document.getElementById('enter-battle-btn');
+        if (enterBtn) enterBtn.disabled = false;
+      };
     }
     
     grid.appendChild(btn);
@@ -1051,19 +1071,27 @@ function renderLevelPagination() {
   if (topPagination) topPagination.innerHTML = totalPages > 1 ? paginationHTML : '';
 }
 
-function buildPaginationHTML(current, total) {
+function enterSelectedBattle() {
+  if (!selectedBattleLevel) {
+    showToast('请先选择要挑战的关卡');
+    return;
+  }
+  startBattle(selectedBattleLevel);
+}
+
+function buildPaginationHTML(currentPage, totalPages) {
   let html = '';
-  html += `<button class="page-btn" onclick="goToLevelPage(${current - 1})" ${current <= 1 ? 'disabled' : ''}>◀</button>`;
+  html += `<button class="page-btn" onclick="goToLevelPage(${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''}>◀</button>`;
   
-  for (let i = 1; i <= total; i++) {
-    if (i === current) {
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === currentPage) {
       html += `<button class="page-btn active">${i}</button>`;
     } else {
       html += `<button class="page-btn" onclick="goToLevelPage(${i})">${i}</button>`;
     }
   }
   
-  html += `<button class="page-btn" onclick="goToLevelPage(${current + 1})" ${current >= total ? 'disabled' : ''}>▶</button>`;
+  html += `<button class="page-btn" onclick="goToLevelPage(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''}>▶</button>`;
   return html;
 }
 
@@ -1473,30 +1501,37 @@ function showBattleResult(isVictory) {
   const totalReward = parseFloat(displayReward);
   
   if (isVictory) {
-    icon.textContent = '🎉';
-    title.textContent = '战斗胜利！';
-    
-    gameState.gold += totalReward;
-    
-    const droppedCards = dropCards(level);
-    let rewardText = `获得 ${formatGold(totalReward)} 金币`;
-    
-    if (droppedCards.length > 0) {
-      rewardText += `<br>获得 ${droppedCards.length} 张卡片：`;
-      droppedCards.forEach(card => {
-        const config = QUALITY_CONFIG[card.quality];
-        rewardText += `<span style="color:${config.color}"> ${card.name}</span>`;
-        gameState.cards.push(card);
-        
-        if (!gameState.collectedCards.includes(card.name)) {
-          gameState.collectedCards.push(card.name);
-        }
-      });
-    }
-    
-    reward.innerHTML = rewardText;
-    
-    if (level > gameState.maxLevel) {
+      icon.textContent = '🎉';
+      title.textContent = '战斗胜利！';
+      
+      gameState.gold += totalReward;
+      
+      const droppedCards = dropCards(level);
+      let rewardText = `获得 ${formatGold(totalReward)} 金币`;
+      
+      if (droppedCards.length > 0) {
+        rewardText += `<br>获得 ${droppedCards.length} 张卡片：`;
+        droppedCards.forEach(card => {
+          const config = QUALITY_CONFIG[card.quality];
+          rewardText += `<span style="color:${config.color}"> ${card.name}</span>`;
+          gameState.cards.push(card);
+          
+          if (!gameState.collectedCards.includes(card.name)) {
+            gameState.collectedCards.push(card.name);
+          }
+        });
+      }
+      
+      // 通关全部关卡提示
+      if (level >= LEVEL_CONFIG.totalLevels) {
+        icon.textContent = '🏆';
+        title.textContent = '恭喜通关全部关卡！';
+        reward.innerHTML = rewardText + '<br><span style="color:#ffd700;font-size:1.1em;">敬请期待新版本！</span>';
+      } else {
+        reward.innerHTML = rewardText;
+      }
+      
+      if (level > gameState.maxLevel) {
       gameState.maxLevel = level;
     }
     
@@ -2068,7 +2103,7 @@ function renderCollectionBonusSummary() {
         html += `<div class="bonus-item ${lvlComplete ? 'complete' : ''}">
           <span class="bonus-quality" style="color:${config.color}">神话+${lvl}</span>
           <span class="bonus-progress">${lvlCollected}/${total}</span>
-          <span class="bonus-value">${lvlComplete ? '+' + lvlBonus + '%' : '需集齐8张'}</span>
+          <span class="bonus-value">${lvlComplete ? '全局+' + lvlBonus + '%' : '需集齐8张'}</span>
         </div>`;
         if (lvlComplete) hasBonus = true;
       }
@@ -2126,6 +2161,13 @@ function selectForBattle() {
   }
   
   gameState.battleCards = selectedCardIds.map(id => gameState.cards.find(c => c.id === id));
+  
+  // 将已出战卡片排到最前三张
+  const battleIds = new Set(selectedCardIds);
+  const battleCards = gameState.cards.filter(c => battleIds.has(c.id));
+  const otherCards = gameState.cards.filter(c => !battleIds.has(c.id));
+  gameState.cards = [...battleCards, ...otherCards];
+  
   switchTab('battle');
 }
 
